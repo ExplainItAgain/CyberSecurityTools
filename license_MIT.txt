@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2023 Owner of ExplainItAgain Account
+Copyright (c) 2023 ExplainItAgain
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19,3 +19,8 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+ExplainItAgain is a pseudonym belonging to the owner of the ExplainItAgain GitHub 
+account and tscomputerhacks@gmail.com email address. Said individual can prove his
+identity by showing access to one or both accounts and proving to have graduated 
+from a university in NorthWestern Pennsylvania in 2022 after attending for three years.
