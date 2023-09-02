@@ -13,7 +13,7 @@ import json
 import sys
 
 import requests # To Remove
-from scapy.all import IP, ICMP, sr1, TCP, UDP # To Remove UDP
+from scapy.all import IP, ICMP, sr1, TCP, sr, UDP, arping # To Remove UDP
 
 # TO DO: 
 # -sU: Perform a UDP scan.
@@ -43,11 +43,10 @@ class PinmapInputError(Exception):
 class Pinmap:
     """Mimic the popular Nmap command line tool using sockets and scapy    
     Usage:
-    Pinmap("-p 20-22,80,443 192.168.1.1")
-    Pinmap("-T5 192.168.1.1/24")
+    Pinmap("-p 20-22,80,443 192.168.1.1/24 -v")
     Pinmap("-Pn 192.168.1.1-192.168.2.3", database = "pinmap.sql", delete_database=False, json_filename='pinmap.json')
 
-    Differences from nmap:
+    Some Large Differences from Nmap:
     Nmap defaults to the top 1000 ports, Pinmap to the top like 100
     Nmap defaults to SYN, Pinmap to basic_scan 
     Nmap has several flags and features (scripts) without support in Pinmap
@@ -72,6 +71,7 @@ class Pinmap:
     ips_latency = []
     scan_type = "basic"
     debug_level = 0
+    ping_method = "ICMP"
 
     def __init__(self, input_str, database = "pinmap.sql", delete_database=True, file=None, json_filename=False, silence_prints=False, log_path=False):
         """ Arguments:
@@ -87,11 +87,12 @@ class Pinmap:
             -T = Time 0(slowest) to 5(fastest) 
             -p = Port numbers
             -pn = Scan ports even if fail ping
-            -sS = SYN Scan
+            -sS, -sA, -sX = SYN Scan, ACK Scan, XMAS scan
             -sV = Get Version Info (Banner scan)
             -v = Verbose
             -d/-dd = Increase debug level
             -sn = Ping scan only
+            -PR, -PA, -PS = ARP Ping, ACK ping, SYN ping
         """
         self.file = file
         self.silence_prints= silence_prints
@@ -133,6 +134,16 @@ class Pinmap:
                     self.scan_type = "SYN"
                 elif part.startswith("-sV"):
                     self.scan_type = "Banner"
+                elif part.startswith("-sA"):
+                    self.scan_type = "ACK"
+                elif part.startswith("-sX"):
+                    self.scan_type = "XMAS"
+                elif part.startswith("-PR"):
+                    self.ping_method = "ARP"
+                elif part.startswith("-PA"):
+                    self.ping_method = "ACK"
+                elif part.startswith("-PS"):
+                    self.ping_method = "SYN"
                 elif part == "-v" or part == "-vv":
                     self.verbose = part
                 elif part.startswith("-sn"):
@@ -162,37 +173,95 @@ class Pinmap:
             format=FORMAT,
             handlers=handlers
         )
-        
+        logging.getLogger("scapy").setLevel(logging.CRITICAL) # Otherwise it outputs warnings
+        logging.debug(f"ping_method: {self.ping_method}")
+        logging.debug(f"scan_type: {self.scan_type}")
+
         # set single_scan then start
         if len(ips) == 1 and "/" not in ips[0] and "," not in ips[0] and "-" not in ips[0]:
             self.single_scan = True
         self.__start_pinmap(",".join(ips))
     
     @staticmethod
-    def ping(ip):
+    def ICMP_ping(ip):
         """ Pass the IP address to ping, return if it is up (bool) and latency (str) """
         start = datetime.now()
-        ping = IP(dst=ip)/ICMP()
-        res = sr1(ping,timeout=1,verbose=0)
-        if res == None:
-            result = False
-        else:
-            result = True
+        ans, unans = sr(IP(dst=ip)/ICMP(), timeout=3, verbose=0)
+        result = len(ans)
+        latency = datetime.now() - start
+        return result, str(latency.seconds) + "." + str(latency.microseconds)[0-1] + "s"
+    
+    @staticmethod
+    def ARP_ping(ip):
+        """ Pass the IP address to ping, return if it is up (bool) and latency (str) """
+        start = datetime.now()
+        ans, unans = arping(ip, verbose=0, timeout=3)
+        result = len(ans)
         latency = datetime.now() - start
         return result, str(latency.seconds) + "." + str(latency.microseconds)[0-1] + "s"
 
     @staticmethod
+    def send_TCP(ip, port, flag):
+        ans, unans = sr(IP(dst=ip)/TCP(dport=port,flags=flag), timeout=3, verbose=0)
+        result = 0
+        result_flag = ""
+        for s, r in ans:
+            if r.getlayer(TCP).flags == "SA":
+                sr(IP(dst=ip)/TCP(dport=port,flags="R"), timeout=0, verbose=0)
+            if s[TCP].dport == r[TCP].sport:
+                result = len(ans)
+                result_flag = r.getlayer(TCP).flags
+        return result, str(result_flag) 
+    
+    @staticmethod
+    def SYN_ping(ip, port=80):
+        """ Pass the IP address to ping, return if it is up (bool) and latency (str) """
+        start = datetime.now()
+        result, x = __class__.send_TCP(ip, port, "S")
+        latency = datetime.now() - start
+        return result, str(latency.seconds) + "." + str(latency.microseconds)[0-1] + "s"
+    
+    @staticmethod
+    def ACK_ping(ip, port=80):
+        """ Pass the IP address to ping, return if it is up (bool) and latency (str) """
+        start = datetime.now()
+        result, x = __class__.send_TCP(ip, port, "A")
+        latency = datetime.now() - start
+        return result, str(latency.seconds) + "." + str(latency.microseconds)[0-1] + "s"
+
+    def __ping(self, ip):
+        if self.ping_method == "ICMP":
+            return self.ICMP_ping(ip)
+        elif self.ping_method == "ARP":
+            return self.ARP_ping(ip)
+        elif self.ping_method == "ACK":
+            return self.ACK_ping(ip)
+        elif self.ping_method == "SYN":
+            return self.SYN_ping(ip)
+    
+    @staticmethod
     def SYN_scan(ip, port):
         """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
-        status = "closed"
-        tcpRequest = IP(dst=ip)/TCP(dport=port,flags="S")
-        tcpResponse = sr1(tcpRequest,timeout=1,verbose=0)
-        try:
-            if tcpResponse.getlayer(TCP).flags == "SA":
-                status = "open"
-        except AttributeError:
-            pass
+        result, flag = __class__.send_TCP(ip, port, "S")
+        if result == 1 and flag == "SA": status = "open"
+        else: status = "closed"
         return (status, "")
+    
+    @staticmethod
+    def ACK_scan(ip, port):
+        """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
+        result, flag = __class__.send_TCP(ip, port, "A")
+        if result == 1: status = "open"
+        else: status = "closed"
+        return (status, "")
+    
+    @staticmethod
+    def XMAS_scan(ip, port):
+        """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
+        result, flag = __class__.send_TCP(ip, port, "FPU")
+        if result == 1: status = "open"
+        else: status = "closed"
+        return (status, "") 
     
     @staticmethod
     def banner_scan(ip, port, return_str_length=50):
@@ -237,6 +306,10 @@ class Pinmap:
             status, banner = self.__class__.SYN_scan(ip, port)
         elif self.scan_type == "Banner":
             status, banner = self.__class__.banner_scan(ip, port)
+        elif self.scan_type == "ACK":
+            status, banner = self.__class__.ACK_scan(ip, port)
+        elif self.scan_type == "XMAS":
+             status, banner = self.__class__.XMAS_scan(ip, port)
         else:
             status, banner = self.__class__.basic_scan(ip, port)
         self.last_scan.append((port, status, banner))      
@@ -276,8 +349,8 @@ class Pinmap:
         """ Pass ip and port_str. Make sqlite3 table and call other functions."""
         logging.debug(f"Ingress {ip}")
         self.ips_scanned += 1
-        is_up, latency = self.__class__.ping(ip)
-        if is_up is True:
+        is_up, latency = self.__ping(ip)
+        if is_up:
             self.ips_latency.append((ip, latency))
             self.hosts_up += 1
             if self.single_scan is True: print("", file=self.file)
@@ -380,7 +453,8 @@ class Pinmap:
     
     def remove_database(self):
         """ Delete self.database """
-        os.remove(self.database)
+        try: os.remove(self.database)
+        except FileNotFoundError: pass
     
     def convert_to_json(self, pinmap_database = "pinmap.sql"):
         """ Convert the provided database to json and return the json """
@@ -413,8 +487,8 @@ class Pinmap:
 # pmap.delete_database()
 # print(pmap_json)
 
-# Example 4: Ping scans all ports on localhost
-pmap = Pinmap("192.168.1.1-192.168.1.2 -sn")
+# Example 4: Ping scan
+# pmap = Pinmap("192.168.1.1-192.168.1.2 -sn -PR -dd")
 
 # Example 5: Scans a host in debug and outputs log to a file
 # pmap = Pinmap("192.168.1.1 -dd", log_path="log.txt")
@@ -426,9 +500,25 @@ pmap = Pinmap("192.168.1.1-192.168.1.2 -sn")
 # c.execute("SELECT name FROM sqlite_schema WHERE type ='table' AND name NOT LIKE 'sqlite_%';")
 # tables = c.fetchall()
 # for table in tables:
-#     print(f"Tablename {table}:")
-#     for row in c.execute(f"SELECT * FROM {table}"):
+#     print(f"Tablename {table[0]}:")
+#     for row in c.execute(f"SELECT * FROM {table[0]}"):
 #         print(row)
+# connection.close()
+# pmap.remove_database()
+
+# Example 7: Manually checking one IP/ports responses
+# ip = "192.168.1.1"
+# port = 80
+# print("ACK Ping:", Pinmap.ACK_ping(ip, port))
+# print("SYN Ping:", Pinmap.SYN_ping(ip, port))
+# print("ARP Ping:", Pinmap.ARP_ping(ip))
+# print("ICMP Ping:", Pinmap.ICMP_ping(ip))
+# print("---")
+# print("ACK Scan:", Pinmap.ACK_scan(ip, port))
+# print("SYN Scan:", Pinmap.SYN_scan(ip, port))
+# print("XMAS Scan:", Pinmap.XMAS_scan(ip, port))
+# print("Basic Scan:", Pinmap.basic_scan(ip, port))
+# print("Banner Scan:", Pinmap.banner_scan(ip, port))
 
 
 # Output all functions in Pinmap
