@@ -18,6 +18,8 @@ from scapy.all import IP, ICMP, sr1, TCP, sr, UDP, arping # To Remove UDP
 # TO DO: 
 # -sU: Perform a UDP scan.
 # Add output as xml? 
+# Seperate the parse_ip and parse_port functions and make them iterators, 
+#   then create test cases. 
 
 # Layout:
 # __init__
@@ -75,13 +77,13 @@ class Pinmap:
 
     def __init__(self, input_str, database = "pinmap.sql", delete_database=True, file=None, json_filename=False, silence_prints=False, log_path=False):
         """ Arguments:
-        input_str (type=str) - the nmap command
-        database (type=str) - the sqlite3 database to put each ip table in (default: pinmap.sql)
-        delete_database (type=bool) - whether or not to delete the database when done (default: True)
-        file (type=fileobj) - a writable file object to print the output to (default: None)
-        json_filename (type=str) - will write the scan results in json to path (default: False)
-        silence_prints(type=bool) - will silence all print statements (not errors) (default: False)
-        log_path(type=str) - will write log to that path if provided. Consider -d or -dd if using this (default: False)
+        input_str (type=str) -- the nmap command
+        database (type=str) -- the sqlite3 database to put each ip table in (default pinmap.sql)
+        delete_database (type=bool) -- whether or not to delete the database when done (default True)
+        file (type=fileobj) -- a writable file object to print the output to (default None)
+        json_filename (type=str) -- will write the scan results in json to path (default False)
+        silence_prints(type=bool) -- will silence all print statements (not errors) (default False)
+        log_path(type=str) -- will write log to that path if provided. Consider -d or -dd if using this (default False)
         
         Currently input_str has support for:
             -T = Time 0(slowest) to 5(fastest) 
