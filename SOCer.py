@@ -10,11 +10,14 @@ import _tkinter
 import time
 import logging
 import configparser
+from tempfile import SpooledTemporaryFile
+from io import StringIO
 
 import requests
 
 from URLdecoder import decode, URLDefenseDecoder as URLdecode
 from phish_reel import send_email, get_email_options
+from pinmap import Pinmap
 #from port_scan import PortScan
 
 
@@ -154,11 +157,9 @@ class SOCer:
         welcome_label = tk.Label(label_frame_1, background="white", 
                                  text="Please browse the programs and reference lists available. \nIf you have not already, I'd recommend adding python to path \nand adding the 'SOCer.bat' script to a directory in path")
         welcome_label.grid(column=0, row=0, padx=50, pady=50)
-
         label_frame_1.pack()
         
         self.window.mainloop()
-
         logging.info("SOCer Initiated")
         
     def destroy_frames(self):
@@ -167,7 +168,7 @@ class SOCer:
         for var in self.vars:
             del var
     
-    def get_item_oneliner(self, frame, text, textvariable, row=0, width=95,l_background="white", e_background="lightgrey"):
+    def standard_input_oneliner(self, frame, text, textvariable, row=0, width=95,l_background="white", e_background="lightgrey"):
         temp_label = tk.Label(frame, text=text, background=l_background)
         temp_label.grid(row=row, column=0)#, columnspan=2)
         temp_entry = tk.Entry(frame, background=e_background, textvariable=textvariable, width=width)#, height=5)
@@ -176,6 +177,15 @@ class SOCer:
     def standard_button(self, frame, text, command, row=0, column=0, columnspan=1):
         temp_button = tk.Button(frame, text=text, command=command, background="lightblue", activebackground="blue")
         temp_button.grid(row=row, column=column, columnspan=columnspan)
+
+    def standard_radio_buttons(self, frame, label_text, texts_values: list[list], variable, row=0, column=0):
+            temp_label = tk.Label(frame, text=label_text, background= "white")
+            temp_label.grid(row=row, column=column)
+            for switch_list in texts_values:
+                column += 1
+                radio_switch = tk.Radiobutton(frame, text = switch_list[0], variable = variable, 
+                                                value = switch_list[1])#, background= "white")
+                radio_switch.grid(row=row, column=column)
 
     def standard_window(self, function, label=""):
         label_frame_1 = tk.LabelFrame(self.window, text=label,
@@ -207,9 +217,9 @@ class SOCer:
             result = send_email(to_email.get(), subject.get(), content.get(), nickname)
             output.set(result)
 
-        self.get_item_oneliner(frame[0], "To (email):", to_email)
-        self.get_item_oneliner(frame[0], "Subject:", subject, row=1)
-        self.get_item_oneliner(frame[0], "Content:", content, row=2)
+        self.standard_input_oneliner(frame[0], "To (email):", to_email)
+        self.standard_input_oneliner(frame[0], "Subject:", subject, row=1)
+        self.standard_input_oneliner(frame[0], "Content:", content, row=2)
         from_label = tk.Label(frame[0], text="From Email:", background="white")
         from_label.grid(row=3, column=0)#, columnspan=2)
         from_email_entry = tk.OptionMenu(frame[0], from_email, *from_email_list)
@@ -226,15 +236,24 @@ class SOCer:
         query = tk.StringVar()
         self.vars.append(query)
 
-        self.get_item_oneliner(frame[0], text="PiNmap", textvariable=query, row=0)
-        self.standard_button(frame[0], column=3, text="Run", command=lambda: x)
+        def run_pinmap():
+            with StringIO("") as file:
+                Pinmap(query.get(), silence_prints=True, file=file)
+                file.seek(0)
+                output = file.read()
+            results_text.insert("1.0", output)
+                
+
+        self.standard_input_oneliner(frame[0], text="PiNmap", textvariable=query, row=0)
+        self.standard_button(frame[0], column=3, text="Run", command=run_pinmap)
 
         results_text = tk.Text(frame[1], background="lightgrey", height=10)
         results_text.grid(row=0, column=0)
 
         help_text = tk.Text(frame[2], background="lightgrey", height=5)
         help_text.grid(row=0, column=0)
-        help = """help info"""
+        help = """Example Command: 192.168.1.46,192.168.1.1 -p21-22 -sV\nCurrently PiNmap has support for:\n-T = Time 0(slowest) to 5(fastest) 
+-p = Port numbers\n-pn = Scan ports even if fail ping\n-sS, -sA, -sX = SYN Scan, ACK Scan, XMAS scan\n-sV = Get Version Info (Banner scan)\n-v = Verbose\n-d/-dd = Increase debug level\n-sn = Ping scan only\n-PR, -PA, -PS = ARP Ping, ACK ping, SYN ping"""
         help_text.insert(tk.END, help + "\n")
 
     def comparer2(self, frame):
@@ -302,22 +321,6 @@ class SOCer:
                     if m.size > 10:
                         text_1_entry.highlight_pattern(text_1[m.a:m.a+m.size], "dupe")
                         text_2_entry.highlight_pattern(text_1[m.a:m.a+m.size], "dupe")    
-
-        def hide_all(*args): 
-            
-            frame[1].pack_forget()
-
-            sep_label.grid(row=1, column=0)
-            radio_switch_1.grid(row=2, column=0)
-            radio_switch_2.grid(row=2, column=1)
-            radio_switch_3.grid(row=2, column=2)
-            radio_switch_4.grid(row=2, column=3)
-            label_split_by_entry.grid(row=3, column=2)
-            entry_split_by.grid(row=3, column=3)
-            strip_chbx.grid(row=4, column=1, columnspan=1)
-
-            frame[1].pack()
-            logging.info(f"Unhidden")
         
         text_1_label = tk.Label(frame[0], text="Text #1", background="white")
         text_1_label.grid(row=0, column=0)#, columnspan=2)
@@ -333,28 +336,23 @@ class SOCer:
         text_2_entry.tag_configure("unique", foreground="blue")
         text_2_entry.tag_configure("dupe", foreground="red")
 
-        sep_label = tk.Label(frame[1], text="\nSeperator:", background= "white")
-        radio_switch_1 = tk.Radiobutton(frame[1], text = "'\\n'", variable = split_by,
-                                        value = "\n")#, background= "white")
-        radio_switch_2 = tk.Radiobutton(frame[1], text = "', '", variable = split_by,
-                                        value = ",")#, background= "white")
-        radio_switch_3 = tk.Radiobutton(frame[1], text = "'\\t'", variable = split_by,
-                                        value = "\t")#, background= "white")
-        radio_switch_4 = tk.Radiobutton(frame[1], text = "' '", variable = split_by,
-                                        value = " ")#, background= "white")
-        label_split_by_entry = tk.Label(frame[1], text = "Other:")
-        entry_split_by = tk.Entry(frame[1], textvariable=split_by)
+        self.standard_radio_buttons(frame[1], label_text="Seperator:", 
+                               texts_values=[["'\\n'", "\n"],["', '", ","],["'\\t'", "\t"],["' '", " "]], 
+                               variable=split_by)
+        self.standard_input_oneliner(frame[1], text="Other:", textvariable=split_by, row=1, width=5)
+        # label_split_by_entry = tk.Label(frame[1], text = "Other:")
+        # entry_split_by = tk.Entry(frame[1], textvariable=split_by)
 
-        case_chbx = tk.Checkbutton(frame[1], text="Case Sensitive", variable=case_sensitive)
-        strip_chbx = tk.Checkbutton(frame[1], text="Strip Excess Space", variable=strip)
-        difflib_chbx = tk.Checkbutton(frame[1], text="Use Difflib Algo", variable=use_diff)
-        case_chbx.grid(row=4, column=0, columnspan=1)
-        difflib_chbx.grid(row=4, column=2)
+        case_chbx = tk.Checkbutton(frame[2], text="Case Sensitive", variable=case_sensitive)
+        strip_chbx = tk.Checkbutton(frame[2], text="Strip Excess Space", variable=strip)
+        difflib_chbx = tk.Checkbutton(frame[2], text="Use Difflib Algo", variable=use_diff)
+        case_chbx.grid(row=0, column=0, columnspan=1)
+        difflib_chbx.grid(row=0, column=1)
         #difflib_chbx.bind("<Button-1>", hide_all)
-        difflib_trace = use_diff.trace("w", hide_all)
+        #difflib_trace = use_diff.trace("w", hide_all)
 
-        compare_button = tk.Button(frame[1], text="Compare", command=compare)
-        compare_button.grid(row=5, column=0, columnspan=4)
+        compare_button = tk.Button(frame[2], text="Compare", command=compare)
+        compare_button.grid(row=1, column=0, columnspan=2)
 
     def comparer(self, frame):
         split_by = tk.StringVar()
