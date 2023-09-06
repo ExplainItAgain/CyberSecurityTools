@@ -19,6 +19,7 @@ import subprocess
 from URLdecoder import decode as URL_decode
 from phish_reel import send_email, get_email_options
 from pinmap import Pinmap
+from r7_tools import InsightVM
 #from port_scan import PortScan
 
 
@@ -102,17 +103,37 @@ class SOCer:
         program_menu = tk.Menu(main_menu)
         main_menu.add_cascade(label="Programs", menu=program_menu, underline=0)
 
-        program_menu.add_command(label="Combiner", command=lambda: self.standard_window(self.combiner, "ClipBoard Combiner 1.0"), underline=0)
-        program_menu.add_command(label="Find&Replace", command=lambda: self.standard_window(self.replacer, "Replacer 1.0"), underline=0)
-        program_menu.add_command(label="LinkCheck", command=lambda: self.standard_window(self.link_checker, "LinkCheck 1.0"), underline=0)
-        program_menu.add_command(label="Compare", command=lambda: self.standard_window(self.comparer, "Comparer 1.0"), underline=0)
-        program_menu.add_command(label="Compare2.0", command=lambda: self.standard_window(self.comparer2, "Comparer 2.0"), underline=0)
-        program_menu.add_command(label="PiNmap", command=lambda: self.standard_window(self.pinmap, "PiNmap 1.0"), underline=0)
-        program_menu.add_command(label="PhishReel", command=lambda: self.standard_window(self.phish_reel, "PhishReel 1.0"), underline=0)
-        program_menu.add_command(label="APIquery", command=lambda: self.standard_window(self.api_query, "API Query 1.0"), underline=0)
-        program_menu.add_command(label="BlackScreen", command=lambda: self.standard_window(self.black_screen, "Black Screen 1.0"), underline=0)
-        program_menu.add_command(label="HotKeys", command=lambda: self.standard_window(self.hot_keys, "Hot Keys 1.0"), underline=0)
-        program_menu.add_command(label="IP Dig", command=lambda: self.standard_window(self.ip_dig, "IP Dig 2.0"), underline=0)
+        #program_menu.add_command(label="Combiner", command=lambda: self.standard_window(self.combiner, "ClipBoard Combiner 1.0"), underline=0)
+        # program_menu.add_command(label="Find&Replace", command=lambda: self.standard_window(self.replacer, "Replacer 1.0"), underline=0)
+        # program_menu.add_command(label="LinkCheck", command=lambda: self.standard_window(self.link_checker, "LinkCheck 1.0"), underline=0)
+        # program_menu.add_command(label="Compare", command=lambda: self.standard_window(self.comparer, "Comparer 1.0"), underline=0)
+        # program_menu.add_command(label="Compare2.0", command=lambda: self.standard_window(self.comparer2, "Comparer 2.0"), underline=0)
+        # program_menu.add_command(label="PiNmap", command=lambda: self.standard_window(self.pinmap, "PiNmap 1.0"), underline=0)
+        # program_menu.add_command(label="PhishReel", command=lambda: self.standard_window(self.phish_reel, "PhishReel 1.0"), underline=0)
+        # program_menu.add_command(label="APIquery", command=lambda: self.standard_window(self.api_query, "API Query 1.0"), underline=0)
+        # program_menu.add_command(label="BlackScreen", command=lambda: self.standard_window(self.black_screen, "Black Screen 1.0"), underline=0)
+        # program_menu.add_command(label="HotKeys", command=lambda: self.standard_window(self.hot_keys, "Hot Keys 1.0"), underline=0)
+        # program_menu.add_command(label="IP Dig", command=lambda: self.standard_window(self.ip_dig, "IP Dig 2.0"), underline=0)
+
+        tabs = [
+            {"name":"ClipBoard Combiner 1.0", "command": self.combiner},
+            {"name":"Find&Replace 1.0", "command": self.replacer},
+            {"name":"Comparer 1.0", "command": self.comparer},
+            {"name":"Comparer 2.0", "command": self.comparer2},
+            {"name":"PiNmap 1.0", "command": self.pinmap},
+            {"name":"PhishReel 1.0", "command": self.phish_reel},
+            {"name":"API Query 1.0", "command": self.api_query},
+            {"name":"Black Screen 1.0", "command": self.black_screen},
+            {"name":"Hot Keys 1.0", "command": self.hot_keys},
+            {"name":"IP Dig 2.0", "command": self.ip_dig},
+            {"name":"LinkCheck 1.0", "command": self.link_checker},
+            {"name":"R7 Delete Assets 1.0", "command": self.ivm_delete_assets}
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.}
+            ]
+        for tab in tabs: 
+            program_menu.add_command(label=tab["name"], command=lambda: self.standard_window(tab["command"], tab["name"]), underline=0)
         # reference_files = os.listdir("./reference")
         
         # reference_menu = tk.Menu(main_menu)
@@ -182,6 +203,17 @@ class SOCer:
         function(frame = self.frames)
 
         for frame in self.frames: frame.pack()
+
+    def ivm_delete_assets(self, frame):
+        output_txbox.delete("1.0", tk.END)
+        def delete_assets():
+            assets = re.split("[\s;:,]", asset_txbox.get("1.0", tk.END))
+            for asset in assets:
+                ids = InsightVM.remove_asset(asset)
+                output_txbox.insert(tk.END, f"{asset} : Results {str(ids)}")
+        asset_txbox = self.standard_textbox(frame[0], label_text="Assets (seperated by comma, colon, semicolon, or whitespace)")
+        self.standard_button(frame[1], text="Delete", command=delete_assets)
+        output_txbox = self.standard_textbox(frame[1], "Output")
 
     def copy_from_hot_key(self, event, value):
         logging.DEBUG(f"Event Called {event}")
