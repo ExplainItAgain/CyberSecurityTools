@@ -225,15 +225,17 @@ class SOCer:
 
     def get_config_file(self):
         config = configparser.ConfigParser()
-        try: config.read("localonly.SOCer.config")
-        except: config.read("SOCer.config")
+        if os.path.isfile("localonly.SOCer.config"):
+            config.read("localonly.SOCer.config")
+        else:
+            config.read("SOCer.config")
         return config
     
     def save_config_file(self, config):
-        try:
+        if os.path.isfile("localonly.SOCer.config"):
             with open("localonly.SOCer.config", "w") as f: 
                 config.write(f)
-        except: 
+        else:
             with open("SOCer.config", "w") as f: 
                 config.write(f)
 

@@ -114,8 +114,10 @@ class SMTPConnection:
 
 def get_creds(email_nickname):
     config = configparser.ConfigParser()
-    try: config.read("localonly.phish_reel.config")
-    except: config.read("phish_reel.config")
+    if os.path.isfile("localonly.phish_reel.config"):
+        config.read("localonly.phish_reel.config")
+    else:
+        config.read("phish_reel.config")
     from_name = config[email_nickname]["name"]
     from_email = config[email_nickname]["email"]
     port = config[email_nickname]["port"]
@@ -135,8 +137,10 @@ def send_email(to_email, subject, content, from_email_nickname, from_name=None):
 
 def get_email_options():
     config = configparser.ConfigParser()
-    try: config.read("localonly.phish_reel.config")
-    except: config.read("phish_reel.config")
+    if os.path.isfile("localonly.phish_reel.config"):
+        config.read("localonly.phish_reel.config")
+    else:
+        config.read("phish_reel.config")
     email_list = []
     for key in config.keys():
         if key != "DEFAULT":

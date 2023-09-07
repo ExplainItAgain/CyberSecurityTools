@@ -2,12 +2,12 @@
 import json
 import logging
 import configparser
+import os
 
 import requests
 import urllib3
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
 
 class InsightVM:
     """Remove Assets from Rapid7 InsightVM
@@ -29,12 +29,13 @@ class InsightVM:
     @classmethod
     def get_creds(cls):
         config = configparser.ConfigParser()
-        try: config.read("localonly.SOCer.config")
-        except: config.read("SOCer.config")
+        if os.path.isfile("localonly.SOCer.config"):
+            config.read("localonly.SOCer.config")
+        else:
+            config.read("SOCer.config")
         cls.API_KEY = config["R7"]["insightvm_key"]
         cls.BASE_URL = config["R7"]["base_url"]
-
-
+        
     @classmethod
     def remove_asset(cls, hostname):
         """ Accept the asset name and delete the asset """
