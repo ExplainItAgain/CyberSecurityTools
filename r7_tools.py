@@ -36,21 +36,30 @@ class InsightVM:
 
 
     @classmethod
-    def remove_asset(cls, asset_name):
+    def remove_asset(cls, hostname):
         """ Accept the asset name and delete the asset """
         logging.basicConfig(level=logging.INFO,
                             format="[%(asctime)s] %(message)s", datefmt='%H:%M:%S')
-
+        
         cls.get_creds()
         logging.info(f"Base URL: {cls.BASE_URL}")
 
         cls._process_name(asset_name)
         logging.info(f"Asset Name: {cls.asset_name}")
 
-        cls._get_asset_id()
+        result = cls._get_id_by_name()
         logging.info(f"Assets Returned: {cls.ids}")
 
         return cls._delete_asset()
+    
+    @classmethod
+    def get_asset_info(cls, hostname=None, ip=None):
+        if ip is not None:
+            result = cls._get_id_by_ip(ip)
+        elif hostname is not None:
+            result = cls._get_id_by_name(hostname)
+        else: return "Error, no info provided"
+        return result
 
     @classmethod
     def _process_name(cls, asset_name):
@@ -67,8 +76,9 @@ class InsightVM:
         cls.asset_name = asset_name
 
     @classmethod
-    def _get_asset_id(cls):
+    def _get_id_by_name(cls, name=None):
         """ Return the asset ID using cls.asset_name """
+        if name==None: name = cls.asset_name
         cls.ids = []
         headers = {  "User-Agent": "Thunder Client (https://www.thunderclient.com)",
                    "Content-Type": "application/json",  "Accept": "application/json;charset=UTF-8",
@@ -77,10 +87,37 @@ class InsightVM:
         payload = {
             "filters": [
                 {"field":"host-name", "lower":"", "operator":"starts-with",
-                 "upper":"","value":cls.asset_name}
+                 "upper":"","value":name}
             ],
             "match": "all"
         }
+        return cls._search_assets(payload) 
+    
+    @classmethod
+    def _get_id_by_ip(cls, ip):
+        """ Return the asset ID using up """
+        cls.ids = []
+        headers = {  "User-Agent": "Thunder Client (https://www.thunderclient.com)",
+                   "Content-Type": "application/json",  "Accept": "application/json;charset=UTF-8",
+                     "Authorization": f"Basic {cls.API_KEY}"
+            }
+        payload = {
+            "filters": [
+                {"field":"ip-address", "lower":"", "operator":"is",
+                 "upper":"","value":ip}
+            ],
+            "match": "all"
+        }
+        return cls._search_assets(payload) 
+    
+    @classmethod
+    def _search_assets(cls, payload):
+        """ Return the asset ID using cls.asset_name """
+        cls.ids = []
+        headers = {  "User-Agent": "Thunder Client (https://www.thunderclient.com)",
+                   "Content-Type": "application/json",  "Accept": "application/json;charset=UTF-8",
+                     "Authorization": f"Basic {cls.API_KEY}"
+            }
         response = requests.post(cls.BASE_URL + "/api/3/assets/search?page=0&size=5",
                                  data=json.dumps(payload), headers=headers, verify=False, timeout=10)
         result = json.loads(response.text)
@@ -89,10 +126,13 @@ class InsightVM:
         except:
             logging.warning(f"Invalid results returned. Results: {result}")
             return
+        
         if len(result["resources"]) > 2:
             raise Exception("Too Many Assets Returned: Search was not specific.")
         for resource in result["resources"]:
             cls.ids.append(resource["id"])
+
+        return result      
 
     def _delete_asset(cls):
         """ Delete all ids in cls.ids """

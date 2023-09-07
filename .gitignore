@@ -3,3 +3,5 @@
 */*localonly*
 
 */*/*localonly*
+
+*__pycache__*

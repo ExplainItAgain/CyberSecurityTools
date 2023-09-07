@@ -15,6 +15,7 @@ import requests
 import json
 import ast
 import subprocess
+import socket
 
 from URLdecoder import decode as URL_decode
 from phish_reel import send_email, get_email_options
@@ -34,7 +35,6 @@ logging.basicConfig(level=logging.INFO, format=FORMAT, datefmt='%H:%M:%S')
 os.chdir(os.path.dirname(__file__))
 
 #TO ADD:
-### Remove assets R7 (list)
 ### R7 query/S1 Query 
 ### References/Notes? 
 ### Ip/hostname dig (nslookup/free API)
@@ -126,14 +126,15 @@ class SOCer:
             {"name":"Black Screen 1.0", "command": self.black_screen},
             {"name":"Hot Keys 1.0", "command": self.hot_keys},
             {"name":"IP Dig 2.0", "command": self.ip_dig},
-            {"name":"LinkCheck 1.0", "command": self.link_checker},
+            {"name":"LinkCheck 1.0", "command": self.link_checker}, 
             {"name":"R7 Delete Assets 1.0", "command": self.ivm_delete_assets}
             # {"name":"", "command": self.},
             # {"name":"", "command": self.},
             # {"name":"", "command": self.}
             ]
         for tab in tabs: 
-            program_menu.add_command(label=tab["name"], command=lambda: self.standard_window(tab["command"], tab["name"]), underline=0)
+            logging.info(tab["name"] +  str(tab["command"]))
+            program_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
         # reference_files = os.listdir("./reference")
         
         # reference_menu = tk.Menu(main_menu)
@@ -199,21 +200,21 @@ class SOCer:
         label_frame_3 = tk.LabelFrame(self.window, bg='white')
         label_frame_4 = tk.LabelFrame(self.window, bg='white')
         self.frames = [label_frame_1, label_frame_2, label_frame_3, label_frame_4]
-
+        logging.info(f"Calling {function}")
         function(frame = self.frames)
 
         for frame in self.frames: frame.pack()
 
     def ivm_delete_assets(self, frame):
-        output_txbox.delete("1.0", tk.END)
         def delete_assets():
+            output_txbox.delete("1.0", tk.END)
             assets = re.split("[\s;:,]", asset_txbox.get("1.0", tk.END))
             for asset in assets:
                 ids = InsightVM.remove_asset(asset)
                 output_txbox.insert(tk.END, f"{asset} : Results {str(ids)}")
         asset_txbox = self.standard_textbox(frame[0], label_text="Assets (seperated by comma, colon, semicolon, or whitespace)")
         self.standard_button(frame[1], text="Delete", command=delete_assets)
-        output_txbox = self.standard_textbox(frame[1], "Output")
+        output_txbox = self.standard_textbox(frame[2], "Output")
 
     def copy_from_hot_key(self, event, value):
         logging.DEBUG(f"Event Called {event}")
@@ -243,34 +244,54 @@ class SOCer:
         hostname = tk.StringVar()
         def run_nslookup():
             results_text.delete("1.0", tk.END)
-            def call_with_output(query):
-                success = False
+            ip = ip_addr.get()
+            host = hostname.get()
+            if len(ip) < 4 and len(host) > 4:
+                try: 
+                    ip = socket.gethostbyname(host)
+                    ip_addr.set(ip)
+                except Exception as e: ip_addr.set(str(e))
+            elif len(host) < 4 and len(ip) > 4:
                 try:
-                    output = subprocess.check_output(query, stderr=subprocess.STDOUT).decode()
-                    success = True 
-                except subprocess.CalledProcessError as e:
-                    output = e.output.decode()
-                except Exception as e:
-                    # check_call can raise other exceptions, such as FileNotFoundError
-                    output = str(e)
-                return(success, output)
-            nslookup = call_with_output(str(f"nslookup {ip}"))
-            if "***" not in nslookup[1]:
-                nslookup = "\n".join(nslookup[1].split("\n")[3:]).strip()
-            else:
-                nslookup = nslookup[1].split("\n")[0]
-            results_text.insert(tk.END, f"nslookup:\n{nslookup}")
+                    host = socket.gethostbyaddr(ip)[0]
+                    hostname.set(host)
+                except Exception as e: hostname.set(str(e))
 
         def run_ipinfo():
             results_text.delete("1.0", tk.END)
             ip = ip_addr.get()
-
+            if len(ip) < 7:
+                run_nslookup()
+                time.sleep(1)
+            if len(ip) < 7:
+                results_text.insert(tk.END, "Add IP")
+                return
+            response = requests.get(url=f"https://www.ipinfo.io/{ip}/")
+            jsponse = response.json()
+            for key in jsponse.keys():
+                if key in ["country", "hostname", "city", "org", "region"]:
+                    results_text.insert("1.0", f"{key}: {jsponse[key]}\n")
+            results_text.insert("1.0","IP INFO")
+        def r7():
+            if len(ip_addr.get()) > 6:
+                ip = ip_addr.get()
+            else: ip = None
+            if len(hostname.get()) > 6:
+                host = hostname.get()
+            else: host = None
+            result = InsightVM.get_asset_info(ip=ip, hostname=host)
+            results_text.insert("1.0", str(result))
+            results_text.insert("1.0", "Rapid7")
+        def s1():
+            pass
 
         self.standard_input_oneliner(frame[0], text="Hostname:", textvariable=hostname)
-        self.standard_input_oneliner(frame[0], text="IP:", textvariable=ip_addr)
+        self.standard_input_oneliner(frame[0], text="IP:", textvariable=ip_addr, row=1)
         self.standard_button(frame[1], text="nslookup", command=run_nslookup, row=0, column=0)
         self.standard_button(frame[1], text="ipinfo", command=run_ipinfo, row=0, column=1)
-        results_text = self.standard_textbox(frame[2], label_text="Results:")
+        self.standard_button(frame[1], text="R7", command=r7, row=0, column=2)
+        self.standard_button(frame[1], text="S1", command=s1, row=0, column=3)
+        results_text = self.standard_textbox(frame[2], label_text="Results:", height=15)
         #headers_text.insert("1.0", str(default_headers))
 
     def hot_keys(self, frame):
