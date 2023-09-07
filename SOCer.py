@@ -35,6 +35,9 @@ logging.basicConfig(level=logging.INFO, format=FORMAT, datefmt='%H:%M:%S')
 os.chdir(os.path.dirname(__file__))
 
 #TO ADD:
+### config file excpetion thing does not work. Maybe reassing configparser each time? 
+### Add a screen to modify the api keys and
+### InsightVM program has .alsac.stjude.org and .alsac.local in there...
 ### R7 query/S1 Query 
 ### References/Notes? 
 ### Ip/hostname dig (nslookup/free API)
