@@ -35,9 +35,7 @@ logging.basicConfig(level=logging.INFO, format=FORMAT, datefmt='%H:%M:%S')
 os.chdir(os.path.dirname(__file__))
 
 #TO ADD:
-### config file excpetion thing does not work. Maybe reassing configparser each time? 
 ### Add a screen to modify the api keys and
-### InsightVM program has .alsac.stjude.org and .alsac.local in there...
 ### R7 query/S1 Query 
 ### References/Notes? 
 ### Ip/hostname dig (nslookup/free API)
@@ -99,35 +97,29 @@ class SOCer:
         self.window.config(menu=main_menu)
 
         # 1nd main menu item: a simple callback
-        #sub_menu_help = tk.Menu(main_menu)
         main_menu.add_command(label="About", command=about_app)
         
         # 2st main menu item: an empty (as far) submenu
-        program_menu = tk.Menu(main_menu)
-        main_menu.add_cascade(label="Programs", menu=program_menu, underline=0)
-
-        #program_menu.add_command(label="Combiner", command=lambda: self.standard_window(self.combiner, "ClipBoard Combiner 1.0"), underline=0)
-        # program_menu.add_command(label="Find&Replace", command=lambda: self.standard_window(self.replacer, "Replacer 1.0"), underline=0)
-        # program_menu.add_command(label="LinkCheck", command=lambda: self.standard_window(self.link_checker, "LinkCheck 1.0"), underline=0)
-        # program_menu.add_command(label="Compare", command=lambda: self.standard_window(self.comparer, "Comparer 1.0"), underline=0)
-        # program_menu.add_command(label="Compare2.0", command=lambda: self.standard_window(self.comparer2, "Comparer 2.0"), underline=0)
-        # program_menu.add_command(label="PiNmap", command=lambda: self.standard_window(self.pinmap, "PiNmap 1.0"), underline=0)
-        # program_menu.add_command(label="PhishReel", command=lambda: self.standard_window(self.phish_reel, "PhishReel 1.0"), underline=0)
-        # program_menu.add_command(label="APIquery", command=lambda: self.standard_window(self.api_query, "API Query 1.0"), underline=0)
-        # program_menu.add_command(label="BlackScreen", command=lambda: self.standard_window(self.black_screen, "Black Screen 1.0"), underline=0)
-        # program_menu.add_command(label="HotKeys", command=lambda: self.standard_window(self.hot_keys, "Hot Keys 1.0"), underline=0)
-        # program_menu.add_command(label="IP Dig", command=lambda: self.standard_window(self.ip_dig, "IP Dig 2.0"), underline=0)
+        util_menu = tk.Menu(main_menu)
+        main_menu.add_cascade(label="Util", menu=util_menu, underline=0)
 
         tabs = [
-            {"name":"ClipBoard Combiner 1.0", "command": self.combiner},
-            {"name":"Find&Replace 1.0", "command": self.replacer},
-            {"name":"Comparer 1.0", "command": self.comparer},
-            {"name":"Comparer 2.0", "command": self.comparer2},
+            {"name":"Add Credentials", "command": self.add_credentials}
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.}
+            ]
+        for tab in tabs: 
+            util_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
+        
+        # 3rd main menu item
+        program_menu = tk.Menu(main_menu)
+        main_menu.add_cascade(label="Apps", menu=program_menu, underline=0)
+
+        tabs = [
             {"name":"PiNmap 1.0", "command": self.pinmap},
             {"name":"PhishReel 1.0", "command": self.phish_reel},
             {"name":"API Query 1.0", "command": self.api_query},
-            {"name":"Black Screen 1.0", "command": self.black_screen},
-            {"name":"Hot Keys 1.0", "command": self.hot_keys},
             {"name":"IP Dig 2.0", "command": self.ip_dig},
             {"name":"LinkCheck 1.0", "command": self.link_checker}, 
             {"name":"R7 Delete Assets 1.0", "command": self.ivm_delete_assets}
@@ -136,20 +128,46 @@ class SOCer:
             # {"name":"", "command": self.}
             ]
         for tab in tabs: 
-            logging.info(tab["name"] +  str(tab["command"]))
             program_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
-        # reference_files = os.listdir("./reference")
-        
-        # reference_menu = tk.Menu(main_menu)
-        # main_menu.add_cascade(label="Reference", menu=reference_menu, underline=0)
 
-        # for file in reference_files:
-        #     reference_menu.add_command(label=file, command=lambda: ref_tab(file), underline=0)
+
+        # 4th main menu item
+        tool_menu = tk.Menu(main_menu)
+        main_menu.add_cascade(label="Tools", menu=tool_menu, underline=0)
+
+        tabs = [
+            {"name":"ClipBoard Combiner 1.0", "command": self.combiner},
+            {"name":"Find&Replace 1.0", "command": self.replacer},
+            {"name":"Comparer 1.0", "command": self.comparer},
+            {"name":"Comparer 2.0", "command": self.comparer2},
+            {"name":"Black Screen 1.0", "command": self.black_screen},
+            {"name":"Hot Keys 1.0", "command": self.hot_keys}
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.}
+            ]
+        for tab in tabs: 
+            tool_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
+
+        # 5th Menu Item
+        reference_files = os.listdir("./reference")
         
+        reference_menu = tk.Menu(main_menu)
+        main_menu.add_cascade(label="Reference", menu=reference_menu, underline=0)
+
+        for file in reference_files:
+            reference_menu.add_command(label=file, command=lambda file=file: self.ref_tab("reference/" + file), underline=0)
+        
+
+        # # 6th Menu Item 
+        # main_menu.add_command(label="New Tab", command=SOCer)
+
+        #Contents
+
         label_frame_1 = tk.LabelFrame(self.window, text="Welcome",
             width=100, height=100, bg='white')
         self.frames.append(label_frame_1)
-        
+
         welcome_label = tk.Label(label_frame_1, background="white", 
                                  text="Please browse the programs and reference lists available. \nIf you have not already, I'd recommend adding python to path \nand adding the 'SOCer.bat' script to a directory in path")
         welcome_label.grid(column=0, row=0, padx=50, pady=50)
@@ -160,6 +178,23 @@ class SOCer:
         self.window.mainloop()
         logging.info("SOCer Initiated")
         
+    def ref_tab(self, file):
+        self.destroy_frames()
+        label_frame_1 = tk.LabelFrame(self.window, text=file, bg='white')
+        label_frame_2 = tk.LabelFrame(self.window, bg='white')
+        self.frames = [label_frame_1, label_frame_2]
+
+        def save_file():
+            with open(file, "w") as f:
+                f.write(text_box.get("1.0", tk.END))
+            
+        text_box = self.standard_textbox(label_frame_1, "", height=20)
+        with open(file, "r") as f:
+            text_box.insert("1.0", f.read())
+
+        self.standard_button(label_frame_2, text="Save", command=save_file)
+        for frame in self.frames: frame.pack()
+    
     def destroy_frames(self):
         for frame in self.frames:
             frame.destroy()
@@ -207,6 +242,46 @@ class SOCer:
         function(frame = self.frames)
 
         for frame in self.frames: frame.pack()
+
+    def add_credentials(self, frame):
+        config = self.get_config_file()
+        virus_total_key = tk.StringVar()
+        virus_total_key.set(config["VT"]["virus_total_key"])
+        ivm_key = tk.StringVar()
+        ivm_key.set(config["R7"]["insightvm_key"])
+        ivm_base_url = tk.StringVar()
+        ivm_base_url.set(config["R7"]["base_url"])
+        s1_key = tk.StringVar()
+        s1_key.set(config["S1"]["sentinelone_key"])
+        s1_base_url = tk.StringVar()
+        s1_base_url.set(config["S1"]["base_url"])
+
+        vars = [
+            {"var": virus_total_key, "name": "Virustotal API key"},
+            {"var": ivm_key, "name": "R7 InsigthVM b64 username+pw"},
+            {"var": ivm_base_url, "name": "IVM base url"},
+            {"var": s1_key, "name": "SentineOne API Key"},
+            {"var": s1_base_url, "name": "S1 base url"} #,
+            # {"var": , "name": ""},
+            # {"var": , "name": ""},
+            # {"var": , "name": ""},
+            # {"var": , "name": ""}
+        ]
+        for index in range(len(vars)):
+            self.standard_input_oneliner(frame[0], vars[index]["name"], vars[index]["var"], row=index)
+
+        def save_all():
+            nonlocal config
+            config["VT"]["virus_total_key"] = virus_total_key.get()
+            config["R7"]["insightvm_key"] = ivm_key.get()
+            config["R7"]["base_url"] = ivm_base_url.get()
+            config["S1"]["sentinelone_key"] = s1_key.get()
+            config["S1"]["base_url"] = s1_base_url.get()
+            self.save_config_file(config=config)
+
+        self.standard_button(frame[1], text="Save", command=save_all)
+        
+
 
     def ivm_delete_assets(self, frame):
         def delete_assets():
@@ -373,25 +448,46 @@ class SOCer:
         subject = tk.StringVar()
         content = tk.StringVar()
         from_email = tk.StringVar()
+        from_name = tk.StringVar()
         output = tk.StringVar()
+        use_file_bool = False
         from_email_list = [i[1] + " " + i[2] for i in get_email_options()]
         from_email.set(from_email_list[0])
         self.vars += [to_email, subject, content, output, from_email]
 
         def send_phish():
+            nonlocal use_file_bool
             email_options = get_email_options()
             choice = from_email_list.index(from_email.get())
             nickname = email_options[choice][0]
-            result = send_email(to_email.get(), subject.get(), content.get(), nickname)
+            fname = None
+            if len(from_name.get())>2: fname = from_name.get()
+            if use_file_bool:
+                with open(content.get(), "r") as f:
+                    email_content = f.read()
+            else:
+                email_content = content.get()
+            result = send_email(to_email.get(), subject.get(), email_content, nickname, fname)
             output.set(result)
+
+        from tkinter import filedialog
+
+        def use_file():
+            nonlocal use_file_bool
+            filename = filedialog.askopenfilename(filetypes=(("html files","*.html"),("All files","*.*")))
+            content.set(filename)
+            use_file_bool = True
 
         self.standard_input_oneliner(frame[0], "To (email):", to_email)
         self.standard_input_oneliner(frame[0], "Subject:", subject, row=1)
         self.standard_input_oneliner(frame[0], "Content:", content, row=2)
+        self.standard_button(frame[0], "Use File", use_file, row=3, column=1)
+
+        self.standard_input_oneliner(frame[0], "From Name:", from_name, row=4)
         from_label = tk.Label(frame[0], text="From Email:", background="white")
-        from_label.grid(row=3, column=0)#, columnspan=2)
+        from_label.grid(row=5, column=0)#, columnspan=2)
         from_email_entry = tk.OptionMenu(frame[0], from_email, *from_email_list)
-        from_email_entry.grid(row=3, column=1)
+        from_email_entry.grid(row=5, column=1)
 
         output_label = tk.Label(frame[2], text="Output:", background="white")
         output_label.grid(row=0, column=0)

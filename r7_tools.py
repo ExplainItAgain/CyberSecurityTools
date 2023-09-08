@@ -65,10 +65,9 @@ class InsightVM:
     @classmethod
     def _process_name(cls, asset_name):
         """Remove inconsistencies from the asset name and validate length"""
-        if ".alsac.local" in asset_name:
-            asset_name = asset_name.replace(".alsac.local", "")
-        elif ".alsac.stjude.org" in asset_name:
-            asset_name = asset_name.replace(".alsac.stjude.org", "")
+        if "." in asset_name:
+            if len(asset_name.split(".")[0]) > 5:
+                asset_name = asset_name.split(".")[0]
 
         #Could delete the wrong assets if the name is too short.
         if len(asset_name) < 6:
