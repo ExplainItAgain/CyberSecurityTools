@@ -157,10 +157,15 @@ class SOCer:
 
         for file in reference_files:
             reference_menu.add_command(label=file, command=lambda file=file: self.ref_tab("reference/" + file), underline=0)
-        
 
         # # 6th Menu Item 
-        # main_menu.add_command(label="New Tab", command=SOCer)
+        # main_menu.add_command(label="New Tab", command=add_SOCer_window)
+
+        def refresh_window():
+            self.window.destroy()
+            SOCer()
+        # 7th Menu Item 
+        main_menu.add_command(label="Refresh Window", command=refresh_window)
 
         #Contents
 
@@ -180,19 +185,23 @@ class SOCer:
         
     def ref_tab(self, file):
         self.destroy_frames()
-        label_frame_1 = tk.LabelFrame(self.window, text=file, bg='white')
+        label_frame_1 = tk.LabelFrame(self.window, text="Reference File", bg='white')
         label_frame_2 = tk.LabelFrame(self.window, bg='white')
-        self.frames = [label_frame_1, label_frame_2]
+        label_frame_3 = tk.LabelFrame(self.window, bg='white')
+        self.frames = [label_frame_1, label_frame_2, label_frame_3]
+        file_path = tk.StringVar()
+        file_path.set(file)
 
         def save_file():
-            with open(file, "w") as f:
+            with open(file_path.get(), "w") as f:
                 f.write(text_box.get("1.0", tk.END))
-            
-        text_box = self.standard_textbox(label_frame_1, "", height=20)
+        
+        self.standard_input_oneliner(label_frame_1, "File:", file_path)
+        text_box = self.standard_textbox(label_frame_2, "", height=20)
         with open(file, "r") as f:
             text_box.insert("1.0", f.read())
 
-        self.standard_button(label_frame_2, text="Save", command=save_file)
+        self.standard_button(label_frame_3, text="Save", command=save_file)
         for frame in self.frames: frame.pack()
     
     def destroy_frames(self):
@@ -906,6 +915,25 @@ class SOCer:
         # vt_button.grid(column=1, row=2, rowspan=1)
 
 #Run code.
-x = SOCer()
+SOCer()
+# def run_SOCer():
+#     SOCer()
+
+# import threading
+# threads = []
+
+# def add_SOCer_window():
+#     th2 = threading.Thread(target=run_SOCer)
+#     threads.append(th2)
+#     th2.start()
+
+# th1 = threading.Thread(target=run_SOCer)
+# threads.append(th1)
+# th1.start()
+
+# for thread in threads:
+#     thread.join()
+
+
 
 

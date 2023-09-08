@@ -304,15 +304,15 @@ class Pinmap:
     def __start_port_thread(self, ip, port):
         """ Pass the ip and port, validate port, start thread for that port """
         logging.debug("Ingress")
-        try: 
-            port = int(port)
-            if port >= self.PORT_RANGE[0] and port <= self.PORT_RANGE[1]:
-                pass
-            else:
-                raise PinmapInputError("Port Failed Validation")
-        except:
-            logging.info(f"Port {port} failed validation")
-            return
+        # try: 
+        #     port = int(port)
+        #     if port >= self.PORT_RANGE[0] and port <= self.PORT_RANGE[1]:
+        #         pass
+        #     else:
+        #         raise PinmapInputError("Port Failed Validation")
+        # except:
+        #     logging.info(f"Port {port} failed validation")
+        #     return
         x = threading.Thread(target=self.__scan_port, args=(ip, port))
         x.start()
         time.sleep(random.randint(0, self.f_time))
@@ -394,6 +394,9 @@ class Pinmap:
         """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
         result, flag = __class__.send_TCP(ip, port, "S")
         if result == 1 and flag == "SA": status = "open"
+        elif result == 1 and flag == "RST": status = "closed"
+        elif result == 1 and "R" not in flag: status = "open"
+        elif result == 0: status = "Filtered"
         else: status = "closed"
         return (status, "")
     
@@ -507,8 +510,6 @@ class Pinmap:
         connection.close()
         return json_obj
         
-    
-
 
 ## Example 1: Scans two ports on two IPs, banner grabs, and outputs to json file
 # pmap = Pinmap("nmap  192.168.1.46,192.168.1.1 -p21-22 -sV -T5", json_filename="pinmap.json")
