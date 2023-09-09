@@ -4,7 +4,6 @@ import ipaddress
 import sqlite3
 import re
 import threading
-import subprocess # To Remove
 from datetime import datetime
 import time
 import random
@@ -12,14 +11,14 @@ import os
 import json
 import sys
 
-import requests # To Remove
 from scapy.all import IP, ICMP, sr1, TCP, sr, UDP, arping # To Remove UDP, sr1
 
 # TO DO: 
 # -sU: Perform a UDP scan.
 # Add output as xml? 
+# Add better closed/open/filtered results
 
-# Layout:
+# Layout (may not be updated... its not):
 # __init__
 # ping
 # SYN_scan
@@ -88,6 +87,7 @@ class Pinmap:
             -p = Port numbers
             -pn = Scan ports even if fail ping
             -sS, -sA, -sX = SYN Scan, ACK Scan, XMAS scan
+            -sN, sF = NULL Scan, FIN scan
             -sV = Get Version Info (Banner scan)
             -v = Verbose
             -d/-dd = Increase debug level
@@ -134,10 +134,16 @@ class Pinmap:
                     self.scan_type = "SYN"
                 elif part.startswith("-sV"):
                     self.scan_type = "Banner"
+                elif part.startswith("-sF"):
+                    self.scan_type = "FIN"
+                elif part.startswith("-sN"):
+                    self.scan_type = "NULL"
                 elif part.startswith("-sA"):
                     self.scan_type = "ACK"
                 elif part.startswith("-sX"):
                     self.scan_type = "XMAS"
+                elif part.startswith("-sU"):
+                    self.scan_type = "UDP"
                 elif part.startswith("-PR"):
                     self.ping_method = "ARP"
                 elif part.startswith("-PA"):
@@ -327,7 +333,13 @@ class Pinmap:
         elif self.scan_type == "ACK":
             status, banner = self.__class__.ACK_scan(ip, port)
         elif self.scan_type == "XMAS":
-             status, banner = self.__class__.XMAS_scan(ip, port)
+             status, banner = self.__class__.custom_TCP_scan(ip, port, flag="FPU")
+        elif self.scan_type == "FIN":
+             status, banner = self.__class__.custom_TCP_scan(ip, port, flag="F")
+        elif self.scan_type == "NULL":
+             status, banner = self.__class__.custom_TCP_scan(ip, port, flag="")  
+        elif self.scan_type == "UDP":
+             status, banner = self.__class__.UDP_scan(ip, port)
         else:
             status, banner = self.__class__.basic_scan(ip, port)
         self.last_scan.append((port, status, banner))      
@@ -346,7 +358,7 @@ class Pinmap:
     def ICMP_ping(ip):
         """ Pass the IP address to ping, return if it is up (bool) and latency (str) """
         start = datetime.now()
-        ans, unans = sr(IP(dst=ip)/ICMP(), timeout=3, verbose=0)
+        ans, unans = sr(IP(dst=ip)/ICMP(), timeout=3, verbose=0, retry=1)
         result = len(ans)
         latency = datetime.now() - start
         return result, str(latency.seconds) + "." + str(latency.microseconds)[0-1] + "s"
@@ -396,16 +408,33 @@ class Pinmap:
         if result == 1 and flag == "SA": status = "open"
         elif result == 1 and flag == "RST": status = "closed"
         elif result == 1 and "R" not in flag: status = "open"
-        elif result == 0: status = "Filtered"
+        elif result == 0: status = "filtered"
         else: status = "closed"
+        return (status, "")
+    
+    @staticmethod
+    def UDP_scan(ip, port):
+        """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
+        ans,unans = sr(IP(dst=ip)/UDP(dport=[(port)]),inter=0.5,retry=1,timeout=1, verbose=0)
+        time.sleep(2)
+        status = "closed"
+        try:
+            if len(ans) is 0:
+                status = "open|filtered"
+            elif ans[0][1].getlayer(UDP) is None:
+                status = "closed"
+            else: 
+                status = "open"
+        except Exception as e:
+            logging.debug(f"UDP: {e}: {ans}")
         return (status, "")
     
     @staticmethod
     def ACK_scan(ip, port):
         """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
         result, flag = __class__.send_TCP(ip, port, "A")
-        if result == 1: status = "open"
-        else: status = "closed"
+        if result == 1: status = "unfiltered"
+        else: status = "filtered"
         return (status, "")
     
     @staticmethod
@@ -413,6 +442,16 @@ class Pinmap:
         """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
         result, flag = __class__.send_TCP(ip, port, "FPU")
         if result == 1: status = "open"
+        else: status = "closed"
+        return (status, "") 
+    
+    @staticmethod
+    def custom_TCP_scan(ip, port, flag="F"):
+        """ Pass the IP and port to scan, return status (str) and a blank string for compatability with banner grabbing """
+        result, flag = __class__.send_TCP(ip, port, flag) # XMAS (FPU), Null and FIN (F)
+        
+        if result == 1 and flag == "RST": status = "closed"
+        elif result == 0: status = "open|filtered"
         else: status = "closed"
         return (status, "") 
     
@@ -509,7 +548,6 @@ class Pinmap:
         json_obj = json.dumps(dicta)
         connection.close()
         return json_obj
-        
 
 ## Example 1: Scans two ports on two IPs, banner grabs, and outputs to json file
 # pmap = Pinmap("nmap  192.168.1.46,192.168.1.1 -p21-22 -sV -T5", json_filename="pinmap.json")

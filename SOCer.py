@@ -11,17 +11,18 @@ import time
 import logging
 import configparser
 from io import StringIO
-import requests
 import json
 import ast
-import subprocess
 import socket
+
+
+# Is it really third party?
+import requests
 
 from URLdecoder import decode as URL_decode
 from phish_reel import send_email, get_email_options
 from pinmap import Pinmap
 from r7_tools import InsightVM
-#from port_scan import PortScan
 
 
 FORMAT = "%(asctime)s: %(levelname)s: %(message)s (File %(filename)s: Function %(funcName)s: Line %(lineno)d)"
@@ -30,15 +31,14 @@ logging.basicConfig(level=logging.INFO, format=FORMAT, datefmt='%H:%M:%S')
 
 
 
-#This is for Visual Studio which does not run from files directory.
-#This program uses relative file paths.
+# This is for vscode which does not run from the directory of the file like a twit.
+# This program uses relative file paths.
 os.chdir(os.path.dirname(__file__))
 
-#TO ADD:
-### Add a screen to modify the api keys and
+# TO ADD:
+### New window tab?
+### About tab?
 ### R7 query/S1 Query 
-### References/Notes? 
-### Ip/hostname dig (nslookup/free API)
 ### URL dig.
 
 class CustomText(tk.Text):
@@ -159,12 +159,15 @@ class SOCer:
             reference_menu.add_command(label=file, command=lambda file=file: self.ref_tab("reference/" + file), underline=0)
 
         # # 6th Menu Item 
-        # main_menu.add_command(label="New Tab", command=add_SOCer_window)
+        # def new_window():
+        #     th1 = threading.Thread(target=SOCer)
+        #     th1.start()
+        # main_menu.add_command(label="New Tab", command=new_window)
 
+        # 7th Menu Item 
         def refresh_window():
             self.window.destroy()
             SOCer()
-        # 7th Menu Item 
         main_menu.add_command(label="Refresh Window", command=refresh_window)
 
         #Contents
@@ -256,6 +259,8 @@ class SOCer:
         config = self.get_config_file()
         virus_total_key = tk.StringVar()
         virus_total_key.set(config["VT"]["virus_total_key"])
+        url_scan_key = tk.StringVar()
+        url_scan_key.set(config["url_scan"]["url_scan_key"])
         ivm_key = tk.StringVar()
         ivm_key.set(config["R7"]["insightvm_key"])
         ivm_base_url = tk.StringVar()
@@ -270,8 +275,8 @@ class SOCer:
             {"var": ivm_key, "name": "R7 InsigthVM b64 username+pw"},
             {"var": ivm_base_url, "name": "IVM base url"},
             {"var": s1_key, "name": "SentineOne API Key"},
-            {"var": s1_base_url, "name": "S1 base url"} #,
-            # {"var": , "name": ""},
+            {"var": s1_base_url, "name": "S1 base url"},
+            {"var": url_scan_key, "name": "URLscan.io Key"}#,
             # {"var": , "name": ""},
             # {"var": , "name": ""},
             # {"var": , "name": ""}
@@ -286,6 +291,7 @@ class SOCer:
             config["R7"]["base_url"] = ivm_base_url.get()
             config["S1"]["sentinelone_key"] = s1_key.get()
             config["S1"]["base_url"] = s1_base_url.get()
+            config["url_scan"]["url_scan_key"] = s1_base_url.get()
             self.save_config_file(config=config)
 
         self.standard_button(frame[1], text="Save", command=save_all)
@@ -837,9 +843,9 @@ class SOCer:
     def link_checker(self, frame): 
         link_unwrapped = tk.StringVar()
         link_unwrapped.set("")
-        vt_results = tk.StringVar()
+        scan_results = tk.StringVar()
 
-        self.vars = self.vars + [link_unwrapped, vt_results]
+        self.vars = self.vars + [link_unwrapped, scan_results]
 
         def decode():
             link = entry_1.get("1.0", tk.END)
@@ -850,45 +856,103 @@ class SOCer:
             logging.info(f"Decoding")
         
         def vt_scan():
+            scan_results.set("Scanning...")
+            if link_unwrapped.get() == "": decode()
             link = link_unwrapped.get()
-            if link == "": 
-                link = entry_1.get("1.0", tk.END)
-            else:
-                config = self.get_config_file()
-                key = config["VT"]["virus_total_key"]
-                
-                def get_vt_report(key = key):
-                    url = 'https://www.virustotal.com/vtapi/v2/url/report'
-                    params = {'apikey': key, 'resource':link}
-                    response = requests.get(url, params=params, verify=False, timeout=10000)
-                    r = response.json()
-                    results = {}
-                    for scan in r["scans"]:
-                        rating = r["scans"][scan]["result"]
-                        if rating not in results.keys():
-                            results[rating] = 1
-                        else:
-                            results[rating] = results[rating] + 1
-                    return results
-                try:
-                    vt_results.set(str(get_vt_report(key=key)))
-                except KeyError:
-                    url = "https://www.virustotal.com/api/v3/urls"
-                    payload = { "url": link }
-                    headers = {
-                        "accept": "application/json",
-                        "content-type": "application/x-www-form-urlencoded",
-                        "X-Apikey": key
-                    }
-                    response = requests.post(url, data=payload, headers=headers, verify=False, timeout=10000)
-                    scan_stat = response.json()["data"]["links"]["self"]
-                    vt_results.set(f"View Results at: {scan_stat}")
+            config = self.get_config_file()
+            key = config["VT"]["virus_total_key"]
+            
+            def get_vt_report(key = key):
+                url = 'https://www.virustotal.com/vtapi/v2/url/report'
+                params = {'apikey': key, 'resource':link}
+                response = requests.get(url, params=params, verify=False, timeout=10000)
+                r = response.json()
+                results = {}
+                for scan in r["scans"]:
+                    rating = r["scans"][scan]["result"]
+                    if rating not in results.keys():
+                        results[rating] = 1
+                    else:
+                        results[rating] = results[rating] + 1
+                return results
+            try:
+                scan_results.set(str(get_vt_report(key=key)))
+            except KeyError:
+                url = "https://www.virustotal.com/api/v3/urls"
+                payload = { "url": link }
+                headers = {
+                    "accept": "application/json",
+                    "content-type": "application/x-www-form-urlencoded",
+                    "X-Apikey": key
+                }
+                response = requests.post(url, data=payload, headers=headers, verify=False, timeout=10000)
+                scan_stat = response.json()["data"]["links"]["self"]
+                scan_results.set(f"View Results at: {scan_stat}")
                 time.sleep(20)
                 try:
-                    vt_results.set(str(get_vt_report(key=key)))
+                    scan_results.set(str(get_vt_report(key=key)))
                 except Exception as e:
-                    vt_results.set(str(e))
-            logging.info(f"Scanning")
+                    scan_results.set(str(e))
+                logging.info(f"Scanning")
+
+        def url_scan():
+            scan_results.set("Scanning...")
+            if link_unwrapped.get() == "": decode()
+            link = link_unwrapped.get()
+            config = self.get_config_file()
+            key = config["url_scan"]["url_scan_key"]
+            def submit_url(link):
+                headers = {'API-Key': key, 'Content-Type':'application/json'}
+                data = {"url": link, "visibility": "public"}
+                response = requests.post('https://urlscan.io/api/v1/scan/',headers=headers, data=json.dumps(data))
+                if response.status_code != 200:
+                    print(response.json()["description"])
+                    scan_results.set("Error:" + response.json()["description"])
+                    return False
+                else:
+                    uuid = response.json()["uuid"]
+                    scan_results.set(f"Submitted, uuid is {uuid}...")
+                    return uuid
+
+            def get_url(uuid):
+                try:
+                    response = requests.request("GET", url = f"https://urlscan.io/api/v1/result/{uuid}/")
+                    if response.status_code == 404:
+                        logging.info(str(response.status_code))
+                        #print(response.text)
+                        return False
+                    else:
+                        JSON = response.json()
+                        mal = JSON["verdicts"]["overall"]["malicious"]
+                        end = JSON["page"]["url"]
+                        countries = JSON["lists"]["countries"]
+                        link_unwrapped.set(end)
+                        scan_results.set(f"Malicous: {mal}, Countries {countries}")
+                        #get_image(uuid)
+                        return True
+                except Exception as e: logging.info(e)
+            def get_image(uuid):
+                """ Not exactly what you would call "working" yet """
+                try:
+                    from PIL import ImageTk
+                    from urllib.request import urlopen
+                    url = f"https://urlscan.io/screenshots/{uuid}.png"
+                    logging.info(f"Requesting {url}") 
+                    newwin = tk.Toplevel(self.window)
+                    image = ImageTk.PhotoImage(file=urlopen(url))
+                    label = tk.Label(newwin, image = image)
+                    label.pack()
+                except Exception as e:
+                    logging.info(e)
+
+            uuid = submit_url(link)
+            if uuid is not False:
+                self.window.after(5000, get_url, (uuid))
+                self.window.after(10000, get_url, (uuid))
+                self.window.after(15000, get_url, (uuid))
+                # self.window.after(15000, get_image, (uuid))
+            logging.info("URL scan done")
+                    
 
         label_1 = tk.Label(frame[0], text="URL:", background="white") 
         label_1.grid(row=0, column=0)
@@ -900,14 +964,15 @@ class SOCer:
         entry_2 = tk.Text(frame[0], width=50, height=2, background="lightgrey")
         entry_2.grid(row=3, column=0, rowspan=1)
 
-        vt_label = tk.Label(frame[1], text="VT Results:", background="white") 
+        vt_label = tk.Label(frame[1], text="Results:", background="white") 
         vt_label.grid(row=0, column=0, columnspan=2)
 
-        entry_vt = tk.Entry(frame[1], textvariable=vt_results, width=75)
+        entry_vt = tk.Entry(frame[1], textvariable=scan_results, width=75)
         entry_vt.grid(row=1, column=0, columnspan=2)
 
         self.standard_button(frame[2], text="Decode", command=decode, row=2)
         self.standard_button(frame[2], text="VirusTotal", command=vt_scan, row=2, column=1)
+        self.standard_button(frame[2], text="URLscan.io", command=url_scan, row=2, column=2)
 
         # decode_button = tk.Button(frame[2], width=20, text="Decode", command=decode)
         # decode_button.grid(column=0, row=2, rowspan=1)
