@@ -6,6 +6,7 @@ import os
 import difflib
 import tkinter as tk
 from tkinter import messagebox
+from tkinter import filedialog
 import _tkinter
 import time
 import logging
@@ -14,10 +15,13 @@ from io import StringIO
 import json
 import ast
 import socket
-
+import subprocess
 
 # Is it really third party?
-import requests
+try:
+    import requests
+except ImportError as e:
+    logging.warning("Requests could not be imported. Run 'pip3 install requests' to fix")
 
 from URLdecoder import decode as URL_decode
 from phish_reel import send_email, get_email_options
@@ -40,12 +44,13 @@ os.chdir(os.path.dirname(__file__))
 ### About tab?
 ### R7 query/S1 Query 
 ### URL dig.
+### Keytyper? For those times you can't copy/paste?
+### Base64 decoder/encoder
 
 class CustomText(tk.Text):
     '''A text widget with a new method, highlight_pattern()
 
-    example:
-
+    Example:
     text = CustomText()
     text.tag_configure("red", foreground="#ff0000")
     text.highlight_pattern("this should be red", "red")
@@ -89,15 +94,14 @@ class SOCer:
         self.window.title("SOCer")
         #self.window.tk.call('wm', 'iconphoto', self.window._w, tk.PhotoImage(file='SOCer.png'))
         
-        def about_app():
-            messagebox.showinfo(title="About", message="Author: ExplainItAgain")
-        
         # main menu creation
         main_menu = tk.Menu(self.window)
         self.window.config(menu=main_menu)
 
         # 1nd main menu item: a simple callback
-        main_menu.add_command(label="About", command=about_app)
+        # def about_app():
+        #     messagebox.showinfo(title="About", message="Author: ExplainItAgain")
+        main_menu.add_command(label="About", command=lambda: self.standard_window(self.about_window, "About"))
         
         # 2st main menu item: an empty (as far) submenu
         util_menu = tk.Menu(main_menu)
@@ -109,6 +113,7 @@ class SOCer:
             # {"name":"", "command": self.},
             # {"name":"", "command": self.}
             ]
+        tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
             util_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
         
@@ -127,6 +132,7 @@ class SOCer:
             # {"name":"", "command": self.},
             # {"name":"", "command": self.}
             ]
+        tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
             program_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
 
@@ -141,177 +147,100 @@ class SOCer:
             {"name":"Comparer 1.0", "command": self.comparer},
             {"name":"Comparer 2.0", "command": self.comparer2},
             {"name":"Black Screen 1.0", "command": self.black_screen},
-            {"name":"Hot Keys 1.0", "command": self.hot_keys}
-            # {"name":"", "command": self.},
+            {"name":"Hot Keys 1.0", "command": self.hot_keys},
+            {"name":"Paste+ 1.0", "command": self.paste_plus} #,
             # {"name":"", "command": self.},
             # {"name":"", "command": self.}
             ]
+        tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
             tool_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
 
-        # 5th Menu Item
+        # 5th main menu item
+        tool_menu = tk.Menu(main_menu)
+        main_menu.add_cascade(label="Adv", menu=tool_menu, underline=0)
+
+        tabs = [
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.},
+            {"name":"Powershell", "command": self.powershell_tab}
+            ]
+        tabs.sort(key=lambda x: x["name"])
+        for tab in tabs: 
+            tool_menu.add_command(label=tab["name"], command=lambda tab=tab: self.standard_window(tab["command"], tab["name"]), underline=0)
+
+
+        # 6th Menu Item
         reference_files = os.listdir("./reference")
         
         reference_menu = tk.Menu(main_menu)
-        main_menu.add_cascade(label="Reference", menu=reference_menu, underline=0)
+        main_menu.add_cascade(label="Ref", menu=reference_menu, underline=0)
 
         for file in reference_files:
-            reference_menu.add_command(label=file, command=lambda file=file: self.ref_tab("reference/" + file), underline=0)
-
-        # # 6th Menu Item 
-        # def new_window():
-        #     th1 = threading.Thread(target=SOCer)
-        #     th1.start()
-        # main_menu.add_command(label="New Tab", command=new_window)
+            reference_menu.add_command(label=file, command=lambda file=file: self.standard_window(self.ref_tab, "Reference Files", "reference/" + file), underline=0)
 
         # 7th Menu Item 
+        # def new_window():
+        #     # th1 = threading.Thread(target=SOCer)
+        #     # th1.start()
+        #     subprocess.call(["python3", "SOCer.py"])
+        # main_menu.add_command(label="New Tab", command=new_window)
+
+        # 8th Menu Item 
         def refresh_window():
             self.window.destroy()
             SOCer()
         main_menu.add_command(label="Refresh Window", command=refresh_window)
 
-        #Contents
-
-        label_frame_1 = tk.LabelFrame(self.window, text="Welcome",
-            width=100, height=100, bg='white')
-        self.frames.append(label_frame_1)
-
-        welcome_label = tk.Label(label_frame_1, background="white", 
-                                 text="Please browse the programs and reference lists available. \nIf you have not already, I'd recommend adding python to path \nand adding the 'SOCer.bat' script to a directory in path")
-        welcome_label.grid(column=0, row=0, padx=50, pady=50)
-        label_frame_1.pack()
+        #self.welcome_window()
+        self.standard_window(self.welcome_window, "Welcome")
 
         self.load_hot_keys()
         
         self.window.mainloop()
         logging.info("SOCer Initiated")
-        
-    def ref_tab(self, file):
-        self.destroy_frames()
-        label_frame_1 = tk.LabelFrame(self.window, text="Reference File", bg='white')
-        label_frame_2 = tk.LabelFrame(self.window, bg='white')
-        label_frame_3 = tk.LabelFrame(self.window, bg='white')
-        self.frames = [label_frame_1, label_frame_2, label_frame_3]
-        file_path = tk.StringVar()
-        file_path.set(file)
 
-        def save_file():
-            with open(file_path.get(), "w") as f:
-                f.write(text_box.get("1.0", tk.END))
-        
-        self.standard_input_oneliner(label_frame_1, "File:", file_path)
-        text_box = self.standard_textbox(label_frame_2, "", height=20)
-        with open(file, "r") as f:
-            text_box.insert("1.0", f.read())
+    def about_window(self, frame):
+        welcome_text = """ Getting Started: I'd recommend adding python and SOCer to path.
 
-        self.standard_button(label_frame_3, text="Save", command=save_file)
-        for frame in self.frames: frame.pack()
+        Contents:
+
+        Util
+        - Add Credentials - Some of the Apps require API keys and base-urls for certain features, 
+            indicated by a *
+        
+        Apps
+        - API Query - This is a basic api client
+        - IP Dig* - Provides some basic ip/hostname resolution and information
+        - LinkCheck* - Provides some unwrapping and reputation checks
+        - PhishReel* - Allows you to send emails via SNMP, you will need to set up its config file
+        - PiNmap - Similiar to nmap, and many of the same commands work
+        - R7 Delete Assets 1.0* - Remove assets in bulk from InsightVM if you have it
+        
+        Tools
+        - Black Screen - Opens up a all-black window so it appears your computer is off
+        - ClipBoard Combiner - Press go, copy a few things, it combines everything you copied
+        - Comparer - Compare two texts for differences
+        - Find&Replace - What it sounds like, but includes support for Regex
+        - Hot Keys - You can set hot keys to copy certain commonly used values
+        - Paste+ - You paste something and it will type it for you for times when pasting is not allowed
+       
+        Reference
+        - This is for commonly used reference files, but it is editable
+        
+        Note:
+        This is meant to perform many functions adequately, but some of these functions are better
+        done with specific tools such as nmap, Notepad++, and Burp Suite. Many do not have common 
+        conterparts and no other application I know of supports them all.
+        """
+        self.standard_label(frame[0], text=welcome_text, justify="left")
     
     def destroy_frames(self):
         for frame in self.frames:
             frame.destroy()
         for var in self.vars:
             del var
-    
-    def standard_input_oneliner(self, frame, text, textvariable, row=0, width=95,l_background="white", e_background="lightgrey"):
-        temp_label = tk.Label(frame, text=text, background=l_background)
-        temp_label.grid(row=row, column=0)#, columnspan=2)
-        temp_entry = tk.Entry(frame, background=e_background, textvariable=textvariable, width=width)#, height=5)
-        temp_entry.grid(row=row, column = 1, columnspan=1)
-
-    def standard_button(self, frame, text, command, row=0, column=0, columnspan=1, rowspan=1, width=20, height=1):
-        temp_button = tk.Button(frame, text=text, command=command, background="slategray1", activebackground="blue", width=width, height=height)
-        temp_button.grid(row=row, column=column, columnspan=columnspan, rowspan=rowspan)
-
-    def standard_radio_buttons(self, frame, label_text, texts_values: list[list], variable, row=0, column=0, seperate_label_line=0, no_label=0):
-            if not no_label:
-                temp_label = tk.Label(frame, text=label_text, background= "white")
-                temp_label.grid(row=row, column=column)
-            if seperate_label_line:
-                row += 1
-            if not seperate_label_line and not no_label:
-                column += 1
-            for switch_list in texts_values:
-                radio_switch = tk.Radiobutton(frame, text = switch_list[0], variable = variable, 
-                                                value = switch_list[1])#, background= "white")
-                radio_switch.grid(row=row, column=column)
-                column += 1      
-    def standard_textbox(self, frame, label_text, row=0, column=0, height=5, width=80,l_background="white", t_background="lightgrey"):
-        temp_label = tk.Label(frame, text=label_text, background=l_background)
-        temp_label.grid(row=row, column=column)
-        temp_text = tk.Text(frame, background=t_background, height=height, width=width)
-        temp_text.grid(row=row+1, column=column)  
-        return temp_text
-        
-    def standard_window(self, function, label=""):
-        self.destroy_frames()
-        label_frame_1 = tk.LabelFrame(self.window, text=label, bg='white')
-        label_frame_2 = tk.LabelFrame(self.window, bg='white')
-        label_frame_3 = tk.LabelFrame(self.window, bg='white')
-        label_frame_4 = tk.LabelFrame(self.window, bg='white')
-        self.frames = [label_frame_1, label_frame_2, label_frame_3, label_frame_4]
-        logging.info(f"Calling {function}")
-        function(frame = self.frames)
-
-        for frame in self.frames: frame.pack()
-
-    def add_credentials(self, frame):
-        config = self.get_config_file()
-        virus_total_key = tk.StringVar()
-        virus_total_key.set(config["VT"]["virus_total_key"])
-        url_scan_key = tk.StringVar()
-        url_scan_key.set(config["url_scan"]["url_scan_key"])
-        ivm_key = tk.StringVar()
-        ivm_key.set(config["R7"]["insightvm_key"])
-        ivm_base_url = tk.StringVar()
-        ivm_base_url.set(config["R7"]["base_url"])
-        s1_key = tk.StringVar()
-        s1_key.set(config["S1"]["sentinelone_key"])
-        s1_base_url = tk.StringVar()
-        s1_base_url.set(config["S1"]["base_url"])
-
-        vars = [
-            {"var": virus_total_key, "name": "Virustotal API key"},
-            {"var": ivm_key, "name": "R7 InsigthVM b64 username+pw"},
-            {"var": ivm_base_url, "name": "IVM base url"},
-            {"var": s1_key, "name": "SentineOne API Key"},
-            {"var": s1_base_url, "name": "S1 base url"},
-            {"var": url_scan_key, "name": "URLscan.io Key"}#,
-            # {"var": , "name": ""},
-            # {"var": , "name": ""},
-            # {"var": , "name": ""}
-        ]
-        for index in range(len(vars)):
-            self.standard_input_oneliner(frame[0], vars[index]["name"], vars[index]["var"], row=index)
-
-        def save_all():
-            nonlocal config
-            config["VT"]["virus_total_key"] = virus_total_key.get()
-            config["R7"]["insightvm_key"] = ivm_key.get()
-            config["R7"]["base_url"] = ivm_base_url.get()
-            config["S1"]["sentinelone_key"] = s1_key.get()
-            config["S1"]["base_url"] = s1_base_url.get()
-            config["url_scan"]["url_scan_key"] = s1_base_url.get()
-            self.save_config_file(config=config)
-
-        self.standard_button(frame[1], text="Save", command=save_all)
-        
-
-
-    def ivm_delete_assets(self, frame):
-        def delete_assets():
-            output_txbox.delete("1.0", tk.END)
-            assets = re.split("[\s;:,]", asset_txbox.get("1.0", tk.END))
-            for asset in assets:
-                ids = InsightVM.remove_asset(asset)
-                output_txbox.insert(tk.END, f"{asset} : Results {str(ids)}")
-        asset_txbox = self.standard_textbox(frame[0], label_text="Assets (seperated by comma, colon, semicolon, or whitespace)")
-        self.standard_button(frame[1], text="Delete", command=delete_assets)
-        output_txbox = self.standard_textbox(frame[2], "Output")
-
-    def copy_from_hot_key(self, event, value):
-        logging.DEBUG(f"Event Called {event}")
-        self.window.clipboard_append(string=value)
 
     def get_config_file(self):
         config = configparser.ConfigParser()
@@ -333,6 +262,191 @@ class SOCer:
         config = self.get_config_file()
         for key in config["HOTKEYS"].keys():
             self.window.bind(key.upper(), lambda x: self.copy_from_hot_key(key, config["HOTKEYS"][key]))
+
+    
+    def standard_input_oneliner(self, frame, text=None, textvariable=None, row=0, column=0, columnspan=1, width=95,l_background="white", e_background="lightgrey", across=True):
+        if text is not None: 
+            self.standard_label(frame, text=text, background=l_background, row=row, column=column, columnspan=columnspan)
+            if across: column += 1
+            else: row += 1
+        temp_entry = tk.Entry(frame, background=e_background, textvariable=textvariable, width=width, font=("@Yu Gothic Medium",9))#, height=5)
+        temp_entry.grid(row=row, column = column, columnspan=columnspan)
+
+    def standard_button(self, frame, text, command, row=0, column=0, columnspan=1, rowspan=1, width=20, height=1):
+        temp_button = tk.Button(frame, text=text, command=command, background="slategray1", activebackground="blue", width=width, height=height, font=("@Yu Gothic UI Semilight",10, 'bold'))
+        temp_button.grid(row=row, column=column, columnspan=columnspan, rowspan=rowspan)
+
+    def standard_radio_buttons(self, frame, label_text, texts_values: list[list], variable, row=0, column=0, seperate_label_line=0, no_label=0):
+            if not no_label:
+                self.standard_label(frame, text=label_text, row=row, column=column)
+            if seperate_label_line:
+                row += 1
+            if not seperate_label_line and not no_label:
+                column += 1
+            for switch_list in texts_values:
+                radio_switch = tk.Radiobutton(frame, text = switch_list[0], variable = variable, 
+                                                value = switch_list[1], font=("Arial",11,), background= "white")
+                radio_switch.grid(row=row, column=column)
+                column += 1      
+    def standard_textbox(self, frame, label_text=None, row=0, column=0, columnspan = 1, height=5, width=80,l_background="white", t_background="lightgrey"):
+        if label_text is not None:
+            self.standard_label(frame, text=label_text, background=l_background, row=row, column=column, columnspan=columnspan)
+            row += 1
+        temp_text = CustomText(frame, background=t_background, height=height, width=width, font=("@Yu Gothic UI Semilight",10))
+        temp_text.grid(row=row, column=column, columnspan=columnspan)  
+        return temp_text
+    
+    def standard_label(self, frame, text=None, textvariable=None, justify='center', background="white", row=0, column=0, columnspan=1, padx=0, pady=0, width=None):
+        label = tk.Label(frame, text=text, textvariable=textvariable, justify=justify, background=background, width=width, font=("@Yu Gothic UI Semilight",9))
+        label.grid(row=row, column=column, padx=padx, pady=pady, columnspan=columnspan)
+        
+    def standard_frame(self, frame, bg='white', text=None, font=("@Yu Gothic UI Semibold",9), row=0, column=0):
+        frame = tk.LabelFrame(frame, text=text, bg=bg, font=font)
+        frame.grid(row=row, column=column)
+        return frame
+    
+    
+    def standard_window(self, function, label="", *args):
+        self.destroy_frames()
+        label_frame_1 = self.standard_frame(self.window, text=label, bg='white', font=("@Yu Gothic UI Semibold",9)) # Bookman Old Style
+        label_frame_2 = self.standard_frame(self.window, bg='white', row=1)
+        label_frame_3 = self.standard_frame(self.window, bg='white', row=2)
+        label_frame_4 = self.standard_frame(self.window, bg='white', row=3)
+        label_frame_5 = self.standard_frame(self.window, bg='white', row=4)
+        self.frames = [label_frame_1, label_frame_2, label_frame_3, label_frame_4, label_frame_5]
+        logging.info(f"Calling {function} with {self.frames, *args}")
+        function(self.frames, *args)
+
+    def standard_options_menu(self, frame, variable, labeltext=None, row=0, column=0, options=[]):
+        if labeltext is not None:
+            self.standard_label(frame, text=labeltext, row=row, column=column)
+            column +=1
+        option_menu = tk.OptionMenu(frame, variable, *options)
+        option_menu.grid(row=row, column=column)
+
+    def standard_checkbuttons(self, frame, text_vars = [], across=True, row=0, column=0):
+        for text_var in text_vars:
+            chckb = tk.Checkbutton(frame, text=text_var[0], variable=text_var[1], font=("Arial",11,))
+            chckb.grid(row=row, column=column)
+            if across: column += 1
+            else: row += 1
+
+    def welcome_window(self, frame):
+        welcome_text = """ Welcome to SOCer! Look at the above tabs to explore!"""
+        self.standard_label(frame[0], text=welcome_text, justify="left", padx=50, pady=50)
+        
+    def ref_tab(self, frame, file):
+        file_path = tk.StringVar()
+        file_path.set(file)
+
+        def save_file():
+            with open(file_path.get(), "w") as f:
+                f.write(text_box.get("1.0", tk.END))
+        
+        self.standard_input_oneliner(frame[0], "File:", file_path)
+        text_box = self.standard_textbox(frame[1], "", height=20)
+        with open(file, "r") as f:
+            text_box.insert("1.0", f.read())
+
+        self.standard_button(frame[2], text="Save", command=save_file)
+
+    def run_ps(self, cmd):
+        completed = subprocess.run(["powershell", "-Command", cmd], capture_output=True)
+        return completed
+    
+    def powershell_tab(self, frame):
+        cmd = """function dotask {
+            param (
+                $keylist, # A list of keys to type
+                $window, # A windowname to activate
+                $sleep # Time to sleep before typing
+            )
+            $wshell = New-Object -ComObject wscript.shell;
+            if ($window -eq "") {
+                #nothing
+                }
+            else {
+                $wshell.AppActivate($window)
+                }
+            Sleep -seconds $sleep
+
+            foreach ($key in $keylist) {
+                $wshell.SendKeys($key)
+                }
+        }
+        # Keep Your Computer Awake
+        $hours = 1
+        $minutes = 60*$hours
+        for ($i=0; $i -lt $minutes;$i++) {
+            dotask -keylist @("%") -window "" -sleep 60
+        }"""
+        def run_script():
+            output_text.delete("1.0", tk.END)
+            res = self.run_ps(text_box.get("1.0", tk.END))
+            res = str(res).replace("\n", """""") # TO DO. This output is crap. Is it the Font? 
+            output_text.insert("1.0", res)
+        text_box = self.standard_textbox(frame[0], height=10)
+        text_box.insert("1.0", cmd)
+        output_text = self.standard_textbox(frame[1], label_text="output", row=2)
+        self.standard_button(frame[2], text="run", command=run_script)
+    
+    def paste_plus(self, frame):
+        seconds = tk.StringVar()
+        seconds.set(5)
+        value = tk.StringVar()
+        def send_keys():
+            self.run_ps(f'start-sleep -seconds {seconds.get()}; $wshell = New-Object -ComObject Wscript.Shell;$wshell.sendkeys("{value.get()}")')
+        self.standard_input_oneliner(frame[0], "Value to Paste", value)
+        self.standard_input_oneliner(frame[0], "Second to Wait", seconds, row=1)
+        self.standard_button(frame[1], text="Run", command=send_keys)
+
+    def add_credentials(self, frame):
+        keys = [
+            # {"section": "", "key_name": ""},
+            # {"section": "", "key_name": ""},
+            # {"section": "", "key_name": ""},
+            # {"section": "", "key_name": ""},
+            {"section": "VT", "key_name": "virus_total_key"},
+            {"section": "url_scan", "key_name": "url_scan_key"},
+            {"section": "R7", "key_name": "insightvm_key"},
+            {"section": "R7", "key_name": "base_url"},
+            {"section": "S1", "key_name": "sentinelone_key"},
+            {"section": "S1", "key_name": "base_url"}        
+            ]
+        key_vars = []
+        config = self.get_config_file()
+        for key in keys:
+            temp = tk.StringVar()
+            try: 
+                temp.set(config[key["section"]][key["key_name"]])
+            except KeyError: 
+                temp.set("")
+            key_vars.append(temp)
+        for index in range(len(key_vars)):
+            self.standard_input_oneliner(frame[0], text=f"{keys[index]['section']} {keys[index]['key_name']}", textvariable=key_vars[index], row=index)
+
+        def save_all():
+            nonlocal config
+            for index in range(len(key_vars)):
+                config[keys[index]["section"]][keys[index]["key_name"]] = key_vars[index].get()
+            self.save_config_file(config=config)
+
+        self.standard_button(frame[1], text="Save", command=save_all)
+        
+    def ivm_delete_assets(self, frame):
+        def delete_assets():
+            output_txbox.delete("1.0", tk.END)
+            assets = re.split("[\s;:,]", asset_txbox.get("1.0", tk.END))
+            for asset in assets:
+                ids = InsightVM.remove_asset(asset)
+                output_txbox.insert(tk.END, f"{asset} : Results {str(ids)}")
+        asset_txbox = self.standard_textbox(frame[0], label_text="Assets (seperated by comma, colon, semicolon, or whitespace)")
+        self.standard_button(frame[1], text="Delete", command=delete_assets)
+        output_txbox = self.standard_textbox(frame[2], "Output")
+
+    def copy_from_hot_key(self, event, value):
+        logging.DEBUG(f"Event Called {event}")
+        self.window.clipboard_append(string=value)
 
     def ip_dig(self, frame):
         ip_addr = tk.StringVar()
@@ -418,8 +532,7 @@ class SOCer:
         def exit_black_screen(x):
             self.t.destroy()
 
-        label = tk.Label(frame[0], text="To turn off the black screen, press 'u'")
-        label.grid(row=0, column=0)
+        self.standard_label(frame[0], text="To turn off the black screen, press 'u'")
         self.standard_button(frame[0], text="Activate Black Screen", row=1, command=activate_black_screen)
         self.standard_button(frame[0], text="Quit Black Screen", row=2, command=exit_black_screen)
         
@@ -485,8 +598,6 @@ class SOCer:
             result = send_email(to_email.get(), subject.get(), email_content, nickname, fname)
             output.set(result)
 
-        from tkinter import filedialog
-
         def use_file():
             nonlocal use_file_bool
             filename = filedialog.askopenfilename(filetypes=(("html files","*.html"),("All files","*.*")))
@@ -499,15 +610,10 @@ class SOCer:
         self.standard_button(frame[0], "Use File", use_file, row=3, column=1)
 
         self.standard_input_oneliner(frame[0], "From Name:", from_name, row=4)
-        from_label = tk.Label(frame[0], text="From Email:", background="white")
-        from_label.grid(row=5, column=0)#, columnspan=2)
-        from_email_entry = tk.OptionMenu(frame[0], from_email, *from_email_list)
-        from_email_entry.grid(row=5, column=1)
+        self.standard_options_menu(frame[0], labeltext="From Email:", row=5, column=0, variable=from_email, options=from_email_list)
 
-        output_label = tk.Label(frame[2], text="Output:", background="white")
-        output_label.grid(row=0, column=0)
-        output_box = tk.Label(frame[2], textvariable=output, background="white", width=80)
-        output_box.grid(row=0, column=1)
+        self.standard_label(frame[2], text="Output:")
+        self.standard_label(frame[2], textvariable=output, width=80, column=1)
  
         self.standard_button(frame[2], "Send", send_phish, column=2)
 
@@ -516,21 +622,19 @@ class SOCer:
         self.vars.append(query)
 
         def run_pinmap():
+            results_text.delete("1.0", tk.END)
             with StringIO("") as file:
-                Pinmap(query.get(), silence_prints=True, file=file)
+                y = Pinmap(query.get(), silence_prints=True, file=file)
                 file.seek(0)
                 output = file.read()
             results_text.insert("1.0", output)
-                
 
-        self.standard_input_oneliner(frame[0], text="PiNmap", textvariable=query, row=0)
+        self.standard_input_oneliner(frame[0], text="PiNmap", textvariable=query, row=0, width=60)
         self.standard_button(frame[0], column=3, text="Run", command=run_pinmap)
 
-        results_text = tk.Text(frame[1], background="lightgrey", height=10)
-        results_text.grid(row=0, column=0)
+        results_text = self.standard_textbox(frame[1], t_background="lightgrey", height=10)
 
-        help_text = tk.Text(frame[2], background="lightgrey", height=5)
-        help_text.grid(row=0, column=0)
+        help_text = self.standard_textbox(frame[2], t_background="lightgrey", height=5)
         help = """Example Command: 192.168.1.46,192.168.1.1 -p21-22 -sV\nCurrently PiNmap has support for:\n-T = Time 0(slowest) to 5(fastest) 
 -p = Port numbers\n-pn = Scan ports even if fail ping\n-sS, -sA, -sX = SYN Scan, ACK Scan, XMAS scan\n-sV = Get Version Info (Banner scan)\n-v = Verbose\n-d/-dd = Increase debug level\n-sn = Ping scan only\n-PR, -PA, -PS = ARP Ping, ACK ping, SYN ping"""
         help_text.insert(tk.END, help + "\n")
@@ -600,37 +704,28 @@ class SOCer:
                     if m.size > 10:
                         text_1_entry.highlight_pattern(text_1[m.a:m.a+m.size], "dupe")
                         text_2_entry.highlight_pattern(text_1[m.a:m.a+m.size], "dupe")    
-        
-        text_1_label = tk.Label(frame[0], text="Text #1", background="white")
-        text_1_label.grid(row=0, column=0)#, columnspan=2)
-        text_2_label = tk.Label(frame[0], text="Text #2", background="white")
-        text_2_label.grid(row=0, column=1)#, columnspan=2)
 
-        text_1_entry = CustomText(frame[0], background="lightgrey")#, height=5)
-        text_1_entry.grid(row=1, column = 0)#, columnspan=2)
+        text_1_entry = self.standard_textbox(frame[0], label_text="Text #1", t_background="lightgrey")
+        text_2_entry = self.standard_textbox(frame[0], label_text="Text #2", t_background="lightgrey", column=1)
+
         text_1_entry.tag_configure("unique", foreground="blue")
         text_1_entry.tag_configure("dupe", foreground="red")
-        text_2_entry = CustomText(frame[0], background="lightgrey")#, height=5)
-        text_2_entry.grid(row=1, column = 1)#, columnspan=2)
         text_2_entry.tag_configure("unique", foreground="blue")
         text_2_entry.tag_configure("dupe", foreground="red")
 
-        self.standard_radio_buttons(frame[1], label_text="Seperator:", 
+        subframe_1 = self.standard_frame(frame[1])
+        subframe_2 = self.standard_frame(frame[1], row=0, column=1)
+
+        self.standard_radio_buttons(subframe_1, label_text="Seperator:", 
                                texts_values=[["'\\n'", "\n"],["', '", ","],["'\\t'", "\t"],["' '", " "]], 
                                variable=split_by)
-        self.standard_input_oneliner(frame[1], text="Other:", textvariable=split_by, row=1, width=5)
-        # label_split_by_entry = tk.Label(frame[1], text = "Other:")
-        # entry_split_by = tk.Entry(frame[1], textvariable=split_by)
+        self.standard_input_oneliner(subframe_1, text="Other:", textvariable=split_by, row=1, width=5)
 
-        case_chbx = tk.Checkbutton(frame[2], text="Case Sensitive", variable=case_sensitive)
-        strip_chbx = tk.Checkbutton(frame[2], text="Strip Excess Space", variable=strip)
-        difflib_chbx = tk.Checkbutton(frame[2], text="Use Difflib Algo", variable=use_diff)
-        case_chbx.grid(row=0, column=0, columnspan=1)
-        difflib_chbx.grid(row=0, column=1)
+        self.standard_checkbuttons(subframe_2, [["Case Sensititive", case_sensitive], ["Strip Excess Space", strip], ["Use Difflib Algo", use_diff]])
         #difflib_chbx.bind("<Button-1>", hide_all)
         #difflib_trace = use_diff.trace("w", hide_all)
 
-        self.standard_button(frame[2], text="Compare", command=compare, row=1, columnspan=2)
+        self.standard_button(subframe_2, text="Compare", command=compare, row=1, columnspan=3)
 
     def comparer(self, frame):
         split_by = tk.StringVar()
@@ -681,44 +776,21 @@ class SOCer:
 
             logging.info(f"Compared")
         
-        text_1_label = tk.Label(frame[0], text="Text #1", background="white")
-        text_1_label.grid(row=0, column=0, columnspan=2)
-        text_2_label = tk.Label(frame[0], text="Text #2", background="white")
-        text_2_label.grid(row=0, column=2, columnspan=2)
+        text_1_entry = self.standard_textbox(frame[0], label_text="Text #1", t_background="lightgrey")
+        text_2_entry = self.standard_textbox(frame[0], label_text="Text #2", t_background="lightgrey", column=1)
 
-        text_1_entry = tk.Text(frame[0], background="lightgrey", height=5)
-        text_1_entry.grid(row=1, column = 0, columnspan=2)
-        text_2_entry = tk.Text(frame[0], background="lightgrey", height=5)
-        text_2_entry.grid(row=1, column = 2, columnspan=2)
-
-        self.standard_radio_buttons(frame[0], label_text="Seperator:", row=2,
+        self.standard_radio_buttons(frame[1], label_text="Seperator:", row=2,
                                texts_values=[["'\\n'", "\n"],["', '", ","],["'\\t'", "\t"],["' '", " "]], 
                                variable=split_by, seperate_label_line=1)
-        #self.standard_input_oneliner(frame[0], text="Other:", textvariable=split_by, row=2, width=5)
 
-        case_chbx = tk.Checkbutton(frame[1], text="Case Sensitive", variable=case_sensitive)
-        strip_chbx = tk.Checkbutton(frame[1], text="Strip Excess Space", variable=strip)
-        case_chbx.grid(row=0, column=0, columnspan=2)
-        strip_chbx.grid(row=0, column=2, columnspan=2)
+        self.standard_checkbuttons(frame[2], [["Case Sensititive", case_sensitive], ["Strip Excess Space", strip]])
 
-        self.standard_button(frame[1], text="Compare", command=compare, row=1, columnspan=4)
-        
+        self.standard_button(frame[2], text="Compare", command=compare, row=1, columnspan=4)
 
-        text_1_label_2 = tk.Label(frame[2], text="Text #1 Unique", background="white")
-        text_1_label_2.grid(row=0, column=0)
-        text_2_label_2 = tk.Label(frame[2], text="Text #2 Unique", background="white")
-        text_2_label_2.grid(row=0, column=1)
+        text_1_disp = self.standard_textbox(frame[3], label_text="Text #1 Unique", t_background="lightgrey", height=5, row=0)
+        text_2_disp = self.standard_textbox(frame[3], label_text="Text #2 Unique", t_background="lightgrey", height=5, column=1, row=0)
 
-        text_1_disp = tk.Text(frame[2], background="lightgrey", height=5)
-        text_1_disp.grid(row=1, column=0)
-        text_2_disp = tk.Text(frame[2], background="lightgrey", height=5)
-        text_2_disp.grid(row=1, column=1)
-
-        dupe_label = tk.Label(frame[2], text="Duplicates", background="white")
-        dupe_label.grid(row=2, column=0, columnspan=2)
-
-        dupe_entry = tk.Text(frame[2], background="lightgrey", height=5, width=160)
-        dupe_entry.grid(row=3, column=0, columnspan=2)
+        dupe_entry = self.standard_textbox(frame[3], label_text="Duplicates", t_background="lightgrey", height=5, width=160, row=2, columnspan=2)
 
     def replacer(self, frame): 
         in_this_text = tk.StringVar()
@@ -744,31 +816,16 @@ class SOCer:
             entry.insert(tk.END, in_this_text.get())
             logging.info(f"Replaced")
 
-        entry = tk.Text(frame[0], width=100, height=5)
+        entry = self.standard_textbox(frame[0], width=100, height=5)
         entry.insert(tk.END, in_this_text.get())
-        entry.grid(row=0, column=0, rowspan=1)
-        blank_label = tk.Label(frame[0], text=" ", background="white") 
-        blank_label.grid(row=2, column=0)
+        self.standard_label(frame[0], text=" ", row=2, column=0)
 
-        # radio_switch_1 = tk.Radiobutton(frame[1], text = "Regex", variable = regex,
-        #                                 value = 1, background= "white")
-        # radio_switch_2 = tk.Radiobutton(frame[1], text = "Standard", variable = regex,
-        #                                 value = 0, background= "white")
-        # radio_switch_1.grid(row=0, column=0)
-        # radio_switch_2.grid(row=0, column=1)
         self.standard_radio_buttons(frame[1], label_text="Type:", row=0,
                         texts_values=[["Regex", 1],["Standard", 0]], 
                         variable=regex, no_label=1)
 
-        find_label = tk.Label(frame[1], text="Find:", background="white") 
-        replace_label = tk.Label(frame[1], text="Replace With:", background="white") 
-        find_label.grid(row=1, column=0)
-        replace_label.grid(row=1, column=1)
-
-        entry_find = tk.Entry(frame[1], textvariable=find_this, width=25)
-        entry_find.grid(row=2, column=0)
-        entry_replace = tk.Entry(frame[1], textvariable=replace_w_this, width=25)
-        entry_replace.grid(row=2, column=1)
+        self.standard_input_oneliner(frame[1], text="Find:", textvariable=find_this, width=25, row=1)
+        self.standard_input_oneliner(frame[1], text="Replace With:", textvariable=replace_w_this, width=25, row=2, column=0)
 
         self.standard_button(frame[1], width=45, text="Run", height=5, command=run, column=3, rowspan=3)
         # run_button = tk.Button(frame[1], width=45, height=5, text="Run", command=run)
@@ -831,14 +888,10 @@ class SOCer:
                                texts_values=[["'\\n'", "\n"],["', '", ","],["'\\t'", "\t"],["' '", " "]], 
                                variable=seperator, seperate_label_line=1)
 
-
-        result_label = tk.Label(frame[1], textvariable=result, background="lightblue") 
-        result_label_2 = tk.Label(frame[1], text="Result:", background="white") 
-        instructions_label = tk.Label(frame[1], background="white",
-                                      text="Press 'Play', copy each item you need, wait until we say 'Done'\n Press 'Show' to check progress. Do not press 'Copy' until done.") 
-        result_label_2.grid(row=0, column=0)
-        result_label.grid(row=1, column=0)
-        instructions_label.grid(row=2, column=0)
+        self.standard_label(frame[1], text="Result:")
+        self.standard_label(frame[1], textvariable=result, background="lightblue", row=1)
+        self.standard_label(frame[1], row=2, text="Press 'Play', copy each item you need, wait until we say 'Done'\n Press 'Show' to check progress. Do not press 'Copy' until done.")
+        
 
     def link_checker(self, frame): 
         link_unwrapped = tk.StringVar()
@@ -953,31 +1006,14 @@ class SOCer:
                 # self.window.after(15000, get_image, (uuid))
             logging.info("URL scan done")
                     
+        entry_1 = self.standard_textbox(frame[0], label_text="URL:", width=50, height=2)
+        entry_2 = self.standard_textbox(frame[0], label_text="Unwrapped:", width=50, height=2, row=2)
 
-        label_1 = tk.Label(frame[0], text="URL:", background="white") 
-        label_1.grid(row=0, column=0)
-        entry_1 = tk.Text(frame[0], width=50, height=2, background="lightgrey")
-        entry_1.grid(row=1, column=0, rowspan=1)
-
-        label_2 = tk.Label(frame[0], text="Unwrapped:", background="white") 
-        label_2.grid(row=2, column=0)
-        entry_2 = tk.Text(frame[0], width=50, height=2, background="lightgrey")
-        entry_2.grid(row=3, column=0, rowspan=1)
-
-        vt_label = tk.Label(frame[1], text="Results:", background="white") 
-        vt_label.grid(row=0, column=0, columnspan=2)
-
-        entry_vt = tk.Entry(frame[1], textvariable=scan_results, width=75)
-        entry_vt.grid(row=1, column=0, columnspan=2)
+        self.standard_input_oneliner(frame[1], text="Results:", textvariable=scan_results, width=75, columnspan=2, across=False)
 
         self.standard_button(frame[2], text="Decode", command=decode, row=2)
         self.standard_button(frame[2], text="VirusTotal", command=vt_scan, row=2, column=1)
         self.standard_button(frame[2], text="URLscan.io", command=url_scan, row=2, column=2)
-
-        # decode_button = tk.Button(frame[2], width=20, text="Decode", command=decode)
-        # decode_button.grid(column=0, row=2, rowspan=1)
-        # vt_button = tk.Button(frame[2], width=20, text="VirusTotal", command=vt_scan)
-        # vt_button.grid(column=1, row=2, rowspan=1)
 
 #Run code.
 SOCer()

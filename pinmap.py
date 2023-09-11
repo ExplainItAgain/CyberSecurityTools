@@ -11,7 +11,10 @@ import os
 import json
 import sys
 
-from scapy.all import IP, ICMP, sr1, TCP, sr, UDP, arping # To Remove UDP, sr1
+try:
+    from scapy.all import IP, ICMP, sr1, TCP, sr, UDP, arping # To Remove UDP, sr1
+except ImportError as e:
+    logging.warning("Scapy could not be imported. Run 'pip3 install scapy' to fix")
 
 # TO DO: 
 # -sU: Perform a UDP scan.
@@ -53,8 +56,6 @@ class Pinmap:
     Nmap -sV does something other than banner grabbing, but Pinmap does banner grabbing for that
     """
     NMAP_HELP = """ """ # TO ADD
-    ips_to_scan = []
-    ports_to_scan = []
     f_time = 0 # Speed, lower is faster
     port_str = "20-23,25,53,67-68,69,80,110,119,123,137-139,143,161-162,179,194,389,443,445,465,514-515,587,636,993-995,1080,1433-1434,1701,1723,3306,3389,5060,5222,5269,5432,5900-5901,8080,8443,9100,9200,11211,27017"
     ping_sweep = True # Ping before scanning ports
@@ -63,10 +64,7 @@ class Pinmap:
     verbose = False # Verbosity level, -v or -vv
     ips_scanned = 0 # Count
     hosts_up = 0 # Count
-    port_level_threads = []
     ip_level_threads = [] # Depreciated since this caused a race condition with sqlite... Whoops
-    last_scan = [] 
-    ips_latency = []
     scan_type = "basic"
     debug_level = 0
     ping_method = "ICMP"
@@ -94,6 +92,11 @@ class Pinmap:
             -sn = Ping scan only
             -PR, -PA, -PS = ARP Ping, ACK ping, SYN ping
         """
+        self.ips_to_scan = []
+        self.ips_latency = []
+        self.ports_to_scan = []
+        self.port_level_threads = []
+        self.last_scan = [] 
         self.file = file
         self.silence_prints= silence_prints
         if silence_prints: sys.stdout = open(os.devnull, 'w')
@@ -419,7 +422,7 @@ class Pinmap:
         time.sleep(2)
         status = "closed"
         try:
-            if len(ans) is 0:
+            if len(ans) == 0:
                 status = "open|filtered"
             elif ans[0][1].getlayer(UDP) is None:
                 status = "closed"
@@ -529,7 +532,9 @@ class Pinmap:
     def remove_database(self):
         """ Delete self.database """
         try: os.remove(self.database)
-        except FileNotFoundError: pass
+        except FileNotFoundError: 
+            logging.debug("Database not found")
+            print("$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$")
     
     def convert_to_json(self, pinmap_database = "pinmap.sql"):
         """ Convert the provided database to json and return the json """

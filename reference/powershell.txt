@@ -1,0 +1,21 @@
+# Send Keys
+## Two Methods to Send Keys:
+[Windows.Forms.SendKeys]::SendWait('hello')
+
+$wshell = New-Object -ComObject Wscript.Shell;
+$wshell.sendkeys("hi")
+
+## Key Formats (https://learn.microsoft.com/en-us/dotnet/api/system.windows.forms.sendkeys?view=netframework-4.7.2)
+{up} {down} {right} {left} | Arrows
+{bksp} {break} {capslock} {del} {end} 
+{enter} {esc} {help} {home} {insert} 
+{pgdn} {pgup} {prtsc} {scrolllock} {tab}
+{F1} {add} {subtract} {multiply}
+{divide} {numlock}
++ | shift
+^ | ctrl 
+% | alt
+{LEFT 42} | press left 42 times 
++(EC) | Hold down shift while..
++EC | Hold shift for E
+
