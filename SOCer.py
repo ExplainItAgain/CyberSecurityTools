@@ -261,19 +261,19 @@ class SOCer:
 
     def get_config_file(self):
         config = configparser.ConfigParser()
-        if os.path.isfile("localonly.SOCer.config"):
-            config.read("localonly.SOCer.config")
-        else:
-            config.read("SOCer.config")
+        # if os.path.isfile("localonly.SOCer.config"):
+        #     config.read("localonly.SOCer.config")
+        # else:
+        config.read("SOCer.config")
         return config
     
     def save_config_file(self, config):
-        if os.path.isfile("localonly.SOCer.config"):
-            with open("localonly.SOCer.config", "w") as f: 
-                config.write(f)
-        else:
-            with open("SOCer.config", "w") as f: 
-                config.write(f)
+        # if os.path.isfile("localonly.SOCer.config"):
+        #     with open("localonly.SOCer.config", "w") as f: 
+        #         config.write(f)
+        # else:
+        with open("SOCer.config", "w") as f: 
+            config.write(f)
 
     def load_hot_keys(self):
         config = self.get_config_file()

@@ -110,14 +110,41 @@ class SMTPConnection:
             logging.critical(traceback.format_exc())
             output = f"Unable to Send Message: {e}"
         return output
+    
 
+def update_creds():
+    config = configparser.ConfigParser()
+    config.read("phish_reel.config")
+    keys = [
+        # {"section":"DEFAULT", "key_name":""},
+        # {"section":"DEFAULT", "key_name":""},
+        # {"section":"DEFAULT", "key_name":""},
+        {"section":"DEFAULT", "key_name":"password"},
+        {"section":"DEFAULT", "key_name":"username"},
+        {"section":"DEFAULT", "key_name":"server"},
+        {"section":"DEFAULT", "key_name":"port"},
+        {"section":"DEFAULT", "key_name":"email"},
+        {"section":"DEFAULT", "key_name":"name"}
+        ]
+    for key in keys:
+        try:
+            temp = config[key["section"]][key["key_name"]]
+        except KeyError:
+            try: 
+                config[key["section"]][key["key_name"]] = key["default"]
+            except KeyError: 
+                config.add_section(key["section"])
+                config[key["section"]][key["key_name"]] = key["default"]
+    with open("phish_reel.config", "w") as f:
+        config.write(f)
 
 def get_creds(email_nickname):
+    update_creds()
     config = configparser.ConfigParser()
-    if os.path.isfile("localonly.phish_reel.config"):
-        config.read("localonly.phish_reel.config")
-    else:
-        config.read("phish_reel.config")
+    # if os.path.isfile("localonly.phish_reel.config"):
+    #     config.read("localonly.phish_reel.config")
+    # else:
+    config.read("phish_reel.config")
     from_name = config[email_nickname]["name"]
     from_email = config[email_nickname]["email"]
     port = config[email_nickname]["port"]
