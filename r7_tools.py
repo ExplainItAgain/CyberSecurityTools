@@ -45,7 +45,7 @@ class InsightVM:
         cls.get_creds()
         logging.info(f"Base URL: {cls.BASE_URL}")
 
-        cls._process_name(asset_name)
+        cls._process_name(hostname)
         logging.info(f"Asset Name: {cls.asset_name}")
 
         result = cls._get_id_by_name()
@@ -55,11 +55,26 @@ class InsightVM:
     
     @classmethod
     def get_asset_info(cls, hostname=None, ip=None):
+        cls.get_creds()
+        logging.info(f"Base URL: {cls.BASE_URL}")
+
         if ip is not None:
             result = cls._get_id_by_ip(ip)
         elif hostname is not None:
             result = cls._get_id_by_name(hostname)
         else: return "Error, no info provided"
+
+        returnstring = ""
+        returnstring += f'Hostname: {result["resources"][0]["hostName"]}\n'
+        returnstring += f'R7 ID: {result["resources"][0]["id"]}\n'
+        returnstring += f'Desc: {result["resources"][0]["description"]}\n'
+        for address in result["resources"][0]["addresses"]:
+            returnstring += f'IP: {address["ip"]}, MAC: {address["mac"]}\n'
+        returnstring += f'Last Scan: {result["resources"][0]["history"][-1]["date"]}\n'
+        returnstring += f'Vulnerabilities: {result["resources"][0]["vulnerabilities"]["total"]}\n'
+        returnstring += f'Risk: {result["resources"][0]["riskScore"]}\n'
+
+
         return result
 
     @classmethod

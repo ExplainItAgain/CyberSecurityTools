@@ -27,6 +27,7 @@ from URLdecoder import decode as URL_decode
 from phish_reel import send_email, get_email_options
 from pinmap import Pinmap
 from r7_tools import InsightVM
+from s1_tools import SentinelOne
 
 
 FORMAT = "%(asctime)s: %(levelname)s: %(message)s (File %(filename)s: Function %(funcName)s: Line %(lineno)d)"
@@ -42,9 +43,11 @@ os.chdir(os.path.dirname(__file__))
 # TO ADD:
 ### New window tab?
 ### About tab?
-### R7 query/S1 Query 
-### URL dig.
-### Keytyper? For those times you can't copy/paste?
+### add tests? 
+### Fix the font for powershell sandbox
+### Add python sandbox. 
+# MAYBE: 
+### email header parser
 ### Base64 decoder/encoder
 
 class CustomText(tk.Text):
@@ -87,6 +90,18 @@ class CustomText(tk.Text):
 
 class SOCer:
     """Main Class for SOCer GUI"""
+    keys = [
+            # {"section": "", "key_name": "", "default": ""},
+            # {"section": "", "key_name": "", "default": ""},
+            # {"section": "", "key_name": "", "default": ""},
+            # {"section": "test", "key_name": "testing", "default": ""},
+            {"section": "VT", "key_name": "virus_total_key", "default": ""},
+            {"section": "url_scan", "key_name": "url_scan_key", "default": ""},
+            {"section": "R7", "key_name": "insightvm_key", "default": "[base64 encoded username and password]"},
+            {"section": "R7", "key_name": "base_url", "default": "https://insightvmserver.local:3780"},
+            {"section": "S1", "key_name": "sentinelone_key", "default": ""},
+            {"section": "S1", "key_name": "base_url", "default": "https://usxx1-xxxx.sentinelone.net"}        
+            ]
     def __init__(self):
         self.frames = []
         self.vars = []
@@ -108,10 +123,10 @@ class SOCer:
         main_menu.add_cascade(label="Util", menu=util_menu, underline=0)
 
         tabs = [
-            {"name":"Add Credentials", "command": self.add_credentials}
             # {"name":"", "command": self.},
             # {"name":"", "command": self.},
-            # {"name":"", "command": self.}
+            {"name":"Add Credentials", "command": self.add_credentials},
+            {"name":"Troubleshooting", "command": self.troubleshooting},
             ]
         tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
@@ -197,6 +212,7 @@ class SOCer:
         self.standard_window(self.welcome_window, "Welcome")
 
         self.load_hot_keys()
+        self.update_creds()
         
         self.window.mainloop()
         logging.info("SOCer Initiated")
@@ -400,35 +416,51 @@ class SOCer:
         self.standard_input_oneliner(frame[0], "Second to Wait", seconds, row=1)
         self.standard_button(frame[1], text="Run", command=send_keys)
 
+    def troubleshooting(self, frame):
+        # Add tests? 
+        def check():
+            # Check Config Keys
+            config = self.get_config_file()
+            for key in self.keys:
+                temp = config[key["section"]][key["key_name"]]
+                if temp == key["default"]:
+                    results.insert("1.0", f'Check config key: [{key["section"]}][{key["key_name"]}]')
+            # Check Powershell Config
+            cmd = """write-host test"""
+            res = self.run_ps(cmd)
+            if res.returncode != 0:
+                results.insert("1.0", f'Powershell connection failed. Do you have powershell?')
+
+        results = self.standard_textbox(frame[0], label_text="Results")
+        self.standard_button(frame[1], text="Run", command=check)
+
+    def update_creds(self):
+        config = self.get_config_file()
+        for key in self.keys:
+            try:
+                temp = config[key["section"]][key["key_name"]]
+            except KeyError:
+                try: 
+                    config[key["section"]][key["key_name"]] = key["default"]
+                except KeyError: 
+                    config.add_section(key["section"])
+                    config[key["section"]][key["key_name"]] = key["default"]
+        self.save_config_file(config)
+
     def add_credentials(self, frame):
-        keys = [
-            # {"section": "", "key_name": ""},
-            # {"section": "", "key_name": ""},
-            # {"section": "", "key_name": ""},
-            # {"section": "", "key_name": ""},
-            {"section": "VT", "key_name": "virus_total_key"},
-            {"section": "url_scan", "key_name": "url_scan_key"},
-            {"section": "R7", "key_name": "insightvm_key"},
-            {"section": "R7", "key_name": "base_url"},
-            {"section": "S1", "key_name": "sentinelone_key"},
-            {"section": "S1", "key_name": "base_url"}        
-            ]
         key_vars = []
         config = self.get_config_file()
-        for key in keys:
+        for key in self.keys:
             temp = tk.StringVar()
-            try: 
-                temp.set(config[key["section"]][key["key_name"]])
-            except KeyError: 
-                temp.set("")
+            temp.set(config[key["section"]][key["key_name"]])
             key_vars.append(temp)
         for index in range(len(key_vars)):
-            self.standard_input_oneliner(frame[0], text=f"{keys[index]['section']} {keys[index]['key_name']}", textvariable=key_vars[index], row=index)
+            self.standard_input_oneliner(frame[0], text=f"{self.keys[index]['section']} {self.keys[index]['key_name']}", textvariable=key_vars[index], row=index)
 
         def save_all():
             nonlocal config
             for index in range(len(key_vars)):
-                config[keys[index]["section"]][keys[index]["key_name"]] = key_vars[index].get()
+                config[self.keys[index]["section"]][self.keys[index]["key_name"]] = key_vars[index].get()
             self.save_config_file(config=config)
 
         self.standard_button(frame[1], text="Save", command=save_all)
@@ -439,7 +471,7 @@ class SOCer:
             assets = re.split("[\s;:,]", asset_txbox.get("1.0", tk.END))
             for asset in assets:
                 ids = InsightVM.remove_asset(asset)
-                output_txbox.insert(tk.END, f"{asset} : Results {str(ids)}")
+                output_txbox.insert(tk.END, f"{asset} : Results {str(list(ids))}")
         asset_txbox = self.standard_textbox(frame[0], label_text="Assets (seperated by comma, colon, semicolon, or whitespace)")
         self.standard_button(frame[1], text="Delete", command=delete_assets)
         output_txbox = self.standard_textbox(frame[2], "Output")
@@ -492,7 +524,16 @@ class SOCer:
             results_text.insert("1.0", str(result))
             results_text.insert("1.0", "Rapid7")
         def s1():
-            pass
+            if len(ip_addr.get()) > 6:
+                ip = ip_addr.get()
+            else: ip = None
+            if len(hostname.get()) > 6:
+                host = hostname.get()
+            else: host = None
+            result = SentinelOne.search_asset(device=host, ip=ip)
+            results_text.insert("1.0", str(result))
+            results_text.insert("1.0", "SentinelOne")
+            
 
         self.standard_input_oneliner(frame[0], text="Hostname:", textvariable=hostname)
         self.standard_input_oneliner(frame[0], text="IP:", textvariable=ip_addr, row=1)
