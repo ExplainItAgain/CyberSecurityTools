@@ -5,3 +5,6 @@
 */*/*localonly*
 
 *__pycache__*
+
+*config*
+*/*config*
