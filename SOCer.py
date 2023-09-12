@@ -94,7 +94,7 @@ class SOCer:
             # {"section": "", "key_name": "", "default": ""},
             # {"section": "", "key_name": "", "default": ""},
             # {"section": "", "key_name": "", "default": ""},
-            # {"section": "test", "key_name": "testing", "default": ""},
+            {"section": "HOTKEYS", "key_name": "F1", "default": ""},
             {"section": "VT", "key_name": "virus_total_key", "default": ""},
             {"section": "url_scan", "key_name": "url_scan_key", "default": ""},
             {"section": "R7", "key_name": "insightvm_key", "default": "[base64 encoded username and password]"},
@@ -208,11 +208,12 @@ class SOCer:
             SOCer()
         main_menu.add_command(label="Refresh Window", command=refresh_window)
 
+        self.update_creds()
+
         #self.welcome_window()
         self.standard_window(self.welcome_window, "Welcome")
 
         self.load_hot_keys()
-        self.update_creds()
         
         self.window.mainloop()
         logging.info("SOCer Initiated")
@@ -285,7 +286,7 @@ class SOCer:
             self.standard_label(frame, text=text, background=l_background, row=row, column=column, columnspan=columnspan)
             if across: column += 1
             else: row += 1
-        temp_entry = tk.Entry(frame, background=e_background, textvariable=textvariable, width=width, font=("@Yu Gothic Medium",9))#, height=5)
+        temp_entry = tk.Entry(frame, background=e_background, textvariable=textvariable, width=width, font=("Arial",11,))#, height=5)
         temp_entry.grid(row=row, column = column, columnspan=columnspan)
 
     def standard_button(self, frame, text, command, row=0, column=0, columnspan=1, rowspan=1, width=20, height=1):
@@ -308,7 +309,7 @@ class SOCer:
         if label_text is not None:
             self.standard_label(frame, text=label_text, background=l_background, row=row, column=column, columnspan=columnspan)
             row += 1
-        temp_text = CustomText(frame, background=t_background, height=height, width=width, font=("@Yu Gothic UI Semilight",10))
+        temp_text = CustomText(frame, background=t_background, height=height, width=width, font=("Arial",11,)) # "@Yu Gothic UI Semilight",10
         temp_text.grid(row=row, column=column, columnspan=columnspan)  
         return temp_text
     
@@ -399,7 +400,7 @@ class SOCer:
         def run_script():
             output_text.delete("1.0", tk.END)
             res = self.run_ps(text_box.get("1.0", tk.END))
-            res = str(res).replace("\n", """""") # TO DO. This output is crap. Is it the Font? 
+            res = str(res).replace("\\n", "\n") # TO DO. This output is crap. Is it the Font? 
             output_text.insert("1.0", res)
         text_box = self.standard_textbox(frame[0], height=10)
         text_box.insert("1.0", cmd)
