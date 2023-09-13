@@ -508,8 +508,12 @@ class SOCer:
             if len(ip) < 7:
                 results_text.insert(tk.END, "Add IP")
                 return
-            response = requests.get(url=f"https://www.ipinfo.io/{ip}/")
-            jsponse = response.json()
+            try:
+                response = requests.get(url=f"https://www.ipinfo.io/{ip}/")
+                jsponse = response.json()
+            except: 
+                response = requests.get(url=f"https://www.ipinfo.io/{ip}/", verify=False)
+                jsponse = response.json()
             for key in jsponse.keys():
                 if key in ["country", "hostname", "city", "org", "region"]:
                     results_text.insert("1.0", f"{key}: {jsponse[key]}\n")
@@ -583,6 +587,8 @@ class SOCer:
         url.set("https://catfact.ninja/fact") # Free test api
         method = tk.StringVar()
         method.set("GET")
+        verify_ssl = tk.BooleanVar()
+        verify_ssl.set(True)
         self.vars += [url, method]
 
         def send_request():
@@ -609,8 +615,10 @@ class SOCer:
         data_text = self.standard_textbox(frame[1], label_text="Data", row=2)
         data_text.insert("1.0", "{}")
 
-        self.standard_button(frame[2], text="Send", command=send_request)
+        self.standard_checkbuttons(frame[1], text_vars=[["Verify SSL", verify_ssl]], row=4)
 
+        self.standard_button(frame[2], text="Send", command=send_request)
+    
         response_text = self.standard_textbox(frame[3], label_text="Response")
    
     def phish_reel(self, frame):
@@ -960,8 +968,12 @@ class SOCer:
             def get_vt_report(key = key):
                 url = 'https://www.virustotal.com/vtapi/v2/url/report'
                 params = {'apikey': key, 'resource':link}
-                response = requests.get(url, params=params, verify=False, timeout=10000)
-                r = response.json()
+                try:
+                    response = requests.get(url, params=params, timeout=10000)
+                except: 
+                    response = requests.get(url, params=params, verify=False, timeout=10000)
+                try: r = response.json()
+                except: return response.text()
                 results = {}
                 for scan in r["scans"]:
                     rating = r["scans"][scan]["result"]
@@ -980,7 +992,10 @@ class SOCer:
                     "content-type": "application/x-www-form-urlencoded",
                     "X-Apikey": key
                 }
-                response = requests.post(url, data=payload, headers=headers, verify=False, timeout=10000)
+                try:
+                    response = requests.post(url, data=payload, headers=headers, timeout=10000)
+                except:
+                    response = requests.post(url, data=payload, headers=headers, verify=False, timeout=10000)
                 scan_stat = response.json()["data"]["links"]["self"]
                 scan_results.set(f"View Results at: {scan_stat}")
                 time.sleep(20)
@@ -999,7 +1014,10 @@ class SOCer:
             def submit_url(link):
                 headers = {'API-Key': key, 'Content-Type':'application/json'}
                 data = {"url": link, "visibility": "public"}
-                response = requests.post('https://urlscan.io/api/v1/scan/',headers=headers, data=json.dumps(data))
+                try:
+                    response = requests.post('https://urlscan.io/api/v1/scan/',headers=headers, data=json.dumps(data))
+                except: 
+                    response = requests.post('https://urlscan.io/api/v1/scan/',headers=headers, data=json.dumps(data), verify=False)
                 if response.status_code != 200:
                     print(response.json()["description"])
                     scan_results.set("Error:" + response.json()["description"])
@@ -1011,7 +1029,10 @@ class SOCer:
 
             def get_url(uuid):
                 try:
-                    response = requests.request("GET", url = f"https://urlscan.io/api/v1/result/{uuid}/")
+                    try:
+                        response = requests.request("GET", url = f"https://urlscan.io/api/v1/result/{uuid}/")
+                    except: 
+                        response = requests.request("GET", url = f"https://urlscan.io/api/v1/result/{uuid}/", verify=False)
                     if response.status_code == 404:
                         logging.info(str(response.status_code))
                         #print(response.text)
