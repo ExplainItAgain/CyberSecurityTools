@@ -94,7 +94,7 @@ class SOCer:
             # {"section": "", "key_name": "", "default": ""},
             # {"section": "", "key_name": "", "default": ""},
             # {"section": "", "key_name": "", "default": ""},
-            {"section": "HOTKEYS", "key_name": "F1", "default": ""},
+            {"section": "HOTKEYS", "key_name": "<f1>", "default": ""},
             {"section": "VT", "key_name": "virus_total_key", "default": ""},
             {"section": "url_scan", "key_name": "url_scan_key", "default": ""},
             {"section": "R7", "key_name": "insightvm_key", "default": "[base64 encoded username and password]"},
@@ -137,15 +137,15 @@ class SOCer:
         main_menu.add_cascade(label="Apps", menu=program_menu, underline=0)
 
         tabs = [
+            # {"name":"", "command": self.},
+            # {"name":"", "command": self.},
             {"name":"PiNmap 1.0", "command": self.pinmap},
             {"name":"PhishReel 1.0", "command": self.phish_reel},
             {"name":"API Query 1.0", "command": self.api_query},
             {"name":"IP Dig 2.0", "command": self.ip_dig},
             {"name":"LinkCheck 1.0", "command": self.link_checker}, 
-            {"name":"R7 Delete Assets 1.0", "command": self.ivm_delete_assets}
-            # {"name":"", "command": self.},
-            # {"name":"", "command": self.},
-            # {"name":"", "command": self.}
+            {"name":"R7 Delete Assets 1.0", "command": self.ivm_delete_assets},
+            {"name":"Mass IP Check 1.0", "command": self.mass_ip}
             ]
         tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
@@ -367,6 +367,69 @@ class SOCer:
 
         self.standard_button(frame[2], text="Save", command=save_file)
 
+    def mass_ip(self, frame):
+        def find_in_grid(frame, row, column):
+            for child in frame.children.values():
+                info = child.grid_info()
+                if info['row'] == row and info['column'] == column:
+                    return child
+                
+        def make_cells(height, width, frame, values=None):
+            spreadsheet = []
+            if values is None: values = ["" for x in range(height*width)]
+            for i in range(height): #Rows
+                spreadsheet.append([])
+                for j in range(width): #Columns
+                    temp_var = tk.StringVar()
+                    self.vars.append(temp_var)
+                    spreadsheet[i].append(temp_var)
+                    temp_var.set(values[0])
+                    tk.Entry(frame, textvariable=temp_var).grid(row=i, column=j)
+                    values.pop(0)
+            return spreadsheet
+        
+        make_cells(1, 4, frame[0], values=["IP", "Org", "Country", "Site"])
+        spreadsheet = make_cells(10, 4, frame[1])
+                    
+        def set_cell(row=0, column=0, value = "", spreadsheet=spreadsheet):
+            spreadsheet[row][column].set(value)
+
+        def paste_ips():
+            ips = self.window.clipboard_get()
+            ips = re.split(r"\s", ips)
+            for ip_ind in range(len(ips)):
+                set_cell(ip_ind, 0, ips[ip_ind])
+
+        def run_ip_info():
+            for row_index in range(len(spreadsheet)):
+                 if spreadsheet[row_index][1].get().strip() != "" or len(spreadsheet[row_index][0].get()) < 7: 
+                    continue
+                 ret_text, ret_dict = self.run_ipinfo(spreadsheet[row_index][0].get())
+                 if ret_dict is None:
+                     pass
+                 else:
+                    for columns in zip([1, 2, 3], ["org", "country", "hostname"]):
+                        try:
+                            spreadsheet[row_index][columns[0]].set(ret_dict[columns[1]])
+                            # spreadsheet[row_index][2].set(ret_dict["country"])
+                            # spreadsheet[row_index][3].set(ret_dict["hostname"])
+                        except Exception as e:
+                            logging.error(e)
+                            logging.error(ret_text)
+
+        def copy_all():
+            ret_string = ""
+            for row_index in range(len(spreadsheet)):
+                for column_index in range(len(spreadsheet[row_index])):
+                    ret_string += spreadsheet[row_index][column_index].get() + "\t"
+                ret_string += "\n"
+            self.window.clipboard_append(ret_string)
+
+          
+        self.standard_button(frame[2], text="Paste IPs", command=paste_ips)
+        self.standard_button(frame[2], text="Run ipinfo.io", command=run_ip_info, column=1)
+        self.standard_button(frame[2], text="Copy All", command=copy_all, column=2)
+
     def run_ps(self, cmd):
         completed = subprocess.run(["powershell", "-Command", cmd], capture_output=True)
         return completed
@@ -481,6 +544,27 @@ class SOCer:
         logging.DEBUG(f"Event Called {event}")
         self.window.clipboard_append(string=value)
 
+    
+    def run_ipinfo(self, ip):
+            return_text = ""
+            return_dict = {}
+            try:
+                ip = Pinmap.validate_ip(ip)
+            except Exception as e:
+                logging.ERROR(str(e))
+                return None, None
+            try:
+                response = requests.get(url=f"https://www.ipinfo.io/{ip}/")
+                jsponse = response.json()
+            except: 
+                response = requests.get(url=f"https://www.ipinfo.io/{ip}/", verify=False)
+                jsponse = response.json()
+            for key in jsponse.keys():
+                if key in ["country", "hostname", "city", "org", "region"]:
+                    return_text += f"{key}: {jsponse[key]}\n"
+                    return_dict[key] = jsponse[key]
+            return return_text, return_dict
+    
     def ip_dig(self, frame):
         ip_addr = tk.StringVar()
         hostname = tk.StringVar()
@@ -508,16 +592,9 @@ class SOCer:
             if len(ip) < 7:
                 results_text.insert(tk.END, "Add IP")
                 return
-            try:
-                response = requests.get(url=f"https://www.ipinfo.io/{ip}/")
-                jsponse = response.json()
-            except: 
-                response = requests.get(url=f"https://www.ipinfo.io/{ip}/", verify=False)
-                jsponse = response.json()
-            for key in jsponse.keys():
-                if key in ["country", "hostname", "city", "org", "region"]:
-                    results_text.insert("1.0", f"{key}: {jsponse[key]}\n")
-            results_text.insert("1.0","IP INFO")
+            return_text, ret_dict = self.run_ipinfo(ip)
+            results_text.insert("1.0", return_text)
+            results_text.insert("1.0","IP INFO\n")
         def r7():
             if len(ip_addr.get()) > 6:
                 ip = ip_addr.get()

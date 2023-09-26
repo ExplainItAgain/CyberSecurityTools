@@ -1,0 +1,48 @@
+C:\> Windows 
+#General
+dir	cd ..	chdir	exit
+certutil –hashfile “C:/[path]” SHA256
+dir /r #see ADSs
+dir "search term*" /s #Search
+echo “hidden text” > filename.txt:hiddenpart
+more < filename.txt:hiddenpart
+type file.txt
+dir c:\ /b/s | find “password” #findfiles
+whoami
+
+#Network
+tracert 4.4.4.4
+ping 4.4.4.4
+ipconfig /all
+pathping #tracert + ping
+nslookup dell.com
+color 2 #green
+netstat print #view routing table
+netstat –a
+arp –a #show arp table
+route #show route table
+net view
+nbtstat –a computername
+curl google.com #getsC:\> Windows 
+Pentesting
+net user user1 P@ssw0rd /add
+net group "domain admins" user1 /add
+set 	#view all environmental variables
+cd C:\$Recycle.Bin
+net user #get users
+net accounts #pw settings
+
+#Security
+sigverif #verify critical file signatures
+
+#General
+Shift + F3 (+ Fn)	#change caps
+[Win] + L		#lock
+[Win] + D		#display desktop
+[Alt] + [Tab]	#switch between open tabs
+[Win] + X 		#Quick menu
+[Win] + Shift + S	#screenshot
+[Win] + UP	#full screen
+[Win] + M		#Minimize
+[Ctrl] + [Shift] + V	#Paste Text
+

@@ -202,15 +202,22 @@ class Pinmap:
             self.__start_ip_thread(ip)
 
         self.__end_pinmap(start)
+
+    @staticmethod
+    def validate_ip(ip):
+        ip_regex = r"(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}"
+        ip = ip.strip()
+        if re.fullmatch(ip_regex, ip): return ip
+        else: raise PinmapInputError(f"{ip} is not a valid ip address")
     
     @staticmethod
     def parse_ip_str(ip_str):
         """ Generator to parse ips in these formats: ip-ip,ip,ip,ip/24 """
-        ip_regex = r"(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}"
-        def validate_ip(ip):
-            ip = ip.strip()
-            if re.fullmatch(ip_regex, ip): return ip
-            else: raise PinmapInputError(f"{ip} is not a valid ip address")
+        # ip_regex = r"(\b25[0-5]|\b2[0-4][0-9]|\b[01]?[0-9][0-9]?)(\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}"
+        # def validate_ip(ip):
+        #     ip = ip.strip()
+        #     if re.fullmatch(ip_regex, ip): return ip
+        #     else: raise PinmapInputError(f"{ip} is not a valid ip address")
 
         def subparse_ip_str(ip_str):
             if "-" in ip_str:
@@ -218,12 +225,12 @@ class Pinmap:
                 if len(ips) > 2: 
                     raise PinmapInputError("The IP Addressess are not properly formatted")
                 for ip in range(int(ipaddress.ip_address(ips[0])), int(ipaddress.ip_address(ips[1]))+1):
-                    yield validate_ip(str(ipaddress.ip_address(ip)))
+                    yield Pinmap.validate_ip(str(ipaddress.ip_address(ip)))
             elif "/" in ip_str:
                 for ip in ipaddress.ip_network(ip_str, False).hosts():
-                    yield validate_ip(str(ipaddress.ip_address(ip)))
+                    yield Pinmap.validate_ip(str(ipaddress.ip_address(ip)))
             else:
-                yield validate_ip(ip_str)
+                yield Pinmap.validate_ip(ip_str)
 
         if "," in ip_str:
             for ip_section in ip_str.split(","):
@@ -557,7 +564,7 @@ class Pinmap:
 ## Example 1: Scans two ports on two IPs, banner grabs, and outputs to json file
 # pmap = Pinmap("nmap  192.168.1.46,192.168.1.1 -p21-22 -sV -T5", json_filename="pinmap.json")
 
-## Example 2: Scans one ip, 23 ports, SYN scan
+# # Example 2: Scans one ip, 23 ports, SYN scan
 # pmap = Pinmap("nmap 192.168.1.1 -p 22-50 -sS")
 
 ## Example 3: Scans two ips, 4 ports, in verbose mode, gets json in variable
