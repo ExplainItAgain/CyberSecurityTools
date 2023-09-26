@@ -389,7 +389,7 @@ class SOCer:
             return spreadsheet
         
         make_cells(1, 4, frame[0], values=["IP", "Org", "Country", "Site"])
-        spreadsheet = make_cells(10, 4, frame[1])
+        spreadsheet = make_cells(20, 4, frame[1])
                     
         def set_cell(row=0, column=0, value = "", spreadsheet=spreadsheet):
             spreadsheet[row][column].set(value)
