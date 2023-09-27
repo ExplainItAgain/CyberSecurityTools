@@ -2,6 +2,7 @@ import json
 import requests
 import os
 import configparser
+from contextlib import suppress
 
 class SentinelOne:
     API_KEY = ""
@@ -37,12 +38,13 @@ class SentinelOne:
                 return "No Data"
         else:
             computer = JSON["data"][0]
-            return_string = f'''Device Name: {computer["computerName"]}
-        IP: {computer["externalIp"]}
-        Serial Number: {computer["serialNumber"] }
-        Last User: {computer["lastLoggedInUserName"]}
-        Active Threats: {computer["activeThreats"]}
-        Is Active: {computer["isActive"]}
-        Is Up to Date: {computer["isUpToDate"]}
-        Last Active: {computer["lastActiveDate"]}'''
+            with suppress(KeyError):
+                return_string = f'''Device Name: {computer["computerName"]}
+            IP: {computer["externalIp"]}
+            Serial Number: {computer["serialNumber"] }
+            Last User: {computer["lastLoggedInUserName"]}
+            Active Threats: {computer["activeThreats"]}
+            Is Active: {computer["isActive"]}
+            Is Up to Date: {computer["isUpToDate"]}
+            Last Active: {computer["lastActiveDate"]}'''
         return return_string

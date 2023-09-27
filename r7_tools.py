@@ -3,6 +3,7 @@ import json
 import logging
 import configparser
 import os
+from contextlib import suppress
 
 import requests
 import urllib3
@@ -65,14 +66,15 @@ class InsightVM:
         else: return "Error, no info provided"
 
         returnstring = ""
-        returnstring += f'Hostname: {result["resources"][0]["hostName"]}\n'
-        returnstring += f'R7 ID: {result["resources"][0]["id"]}\n'
-        returnstring += f'Desc: {result["resources"][0]["description"]}\n'
-        for address in result["resources"][0]["addresses"]:
-            returnstring += f'IP: {address["ip"]}, MAC: {address["mac"]}\n'
-        returnstring += f'Last Scan: {result["resources"][0]["history"][-1]["date"]}\n'
-        returnstring += f'Vulnerabilities: {result["resources"][0]["vulnerabilities"]["total"]}\n'
-        returnstring += f'Risk: {result["resources"][0]["riskScore"]}\n'
+        with suppress(KeyError):
+            returnstring += f'Hostname: {result["resources"][0]["hostName"]}\n'
+            returnstring += f'R7 ID: {result["resources"][0]["id"]}\n'
+            returnstring += f'Desc: {result["resources"][0]["description"]}\n'
+            for address in result["resources"][0]["addresses"]:
+                returnstring += f'IP: {address["ip"]}, MAC: {address["mac"]}\n'
+            returnstring += f'Last Scan: {result["resources"][0]["history"][-1]["date"]}\n'
+            returnstring += f'Vulnerabilities: {result["resources"][0]["vulnerabilities"]["total"]}\n'
+            returnstring += f'Risk: {result["resources"][0]["riskScore"]}\n'
 
 
         return result
@@ -149,6 +151,7 @@ class InsightVM:
 
         return result      
 
+    @classmethod
     def _delete_asset(cls):
         """ Delete all ids in cls.ids """
         headers = {  "User-Agent":"Thunder Client (https://www.thunderclient.com)",

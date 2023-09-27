@@ -324,6 +324,7 @@ class SOCer:
     
     
     def standard_window(self, function, label="", *args):
+        #self.window.clipboard_clear()
         self.destroy_frames()
         label_frame_1 = self.standard_frame(self.window, text=label, bg='white', font=("@Yu Gothic UI Semibold",9)) # Bookman Old Style
         label_frame_2 = self.standard_frame(self.window, bg='white', row=1)
@@ -423,7 +424,8 @@ class SOCer:
                 for column_index in range(len(spreadsheet[row_index])):
                     ret_string += spreadsheet[row_index][column_index].get() + "\t"
                 ret_string += "\n"
-            self.window.clipboard_append(ret_string)
+            #self.window.clipboard_append(ret_string)
+            self.copy(ret_string)
 
           
         self.standard_button(frame[2], text="Paste IPs", command=paste_ips)
@@ -542,7 +544,8 @@ class SOCer:
 
     def copy_from_hot_key(self, event, value):
         logging.DEBUG(f"Event Called {event}")
-        self.window.clipboard_append(string=value)
+        #self.window.clipboard_append(string=value)
+        self.copy(value)
 
     
     def run_ipinfo(self, ip):
@@ -958,6 +961,12 @@ class SOCer:
         # run_button = tk.Button(frame[1], width=45, height=5, text="Run", command=run)
         # run_button.grid(column=3, row=0, rowspan=3)
 
+    def copy(self, value):
+        os.system(f"echo {value} | clip.exe")
+        #os.system(f"echo {sep.join(clipboard)} | clip.exe")
+        #subprocess.Popen(["echo", sep.join(clipboard), "|", "clip.exe"])
+
+    
     def combiner(self, frame):
         seperator = tk.StringVar()
         seperator.set(", ")
@@ -971,7 +980,6 @@ class SOCer:
                 first = self.window.clipboard_get()
             except _tkinter.TclError:
                 first = ""
-            
             while accum < 4:
                 self.window.after(1000)
                 try: 
@@ -990,9 +998,11 @@ class SOCer:
 
         def copy_value():
             sep = str(seperator.get())
-            self.window.clipboard_append(string=sep.join(clipboard)) 
+            #self.window.clipboard_append(string=sep.join(clipboard)) 
             result.set(sep.join(clipboard))
             logging.info(f"Copied")
+            self.copy(sep.join(clipboard))
+            #subprocess.Popen(["echo", sep.join(clipboard), "|", "clip.exe"])
 
         def reset():
             result.set("")
