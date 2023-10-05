@@ -16,6 +16,8 @@ import json
 import ast
 import socket
 import subprocess
+import sched
+import psutil
 
 # Is it really third party?
 try:
@@ -94,6 +96,8 @@ class SOCer:
             # {"section": "", "key_name": "", "default": ""},
             # {"section": "", "key_name": "", "default": ""},
             # {"section": "", "key_name": "", "default": ""},
+            {"section": "MONITORS", "key_name": "1", "default": ""},
+            {"section": "ALERTS", "key_name": "alert_dest_email", "default": "default@test.com"},
             {"section": "HOTKEYS", "key_name": "<f1>", "default": ""},
             {"section": "VT", "key_name": "virus_total_key", "default": ""},
             {"section": "url_scan", "key_name": "url_scan_key", "default": ""},
@@ -138,14 +142,16 @@ class SOCer:
 
         tabs = [
             # {"name":"", "command": self.},
-            # {"name":"", "command": self.},
-            {"name":"PiNmap 1.0", "command": self.pinmap},
-            {"name":"PhishReel 1.0", "command": self.phish_reel},
-            {"name":"API Query 1.0", "command": self.api_query},
-            {"name":"IP Dig 2.0", "command": self.ip_dig},
-            {"name":"LinkCheck 1.0", "command": self.link_checker}, 
-            {"name":"R7 Delete Assets 1.0", "command": self.ivm_delete_assets},
-            {"name":"Mass IP Check 1.0", "command": self.mass_ip}
+            {"name":"Asset Ops 1.0", "command": self.asset_op_window},
+            # {"name":"Resource Monitor 1.0", "command": self.resource_monitor_window},
+            {"name":"Baseline Security 1.0", "command": self.baseline_security_window},
+            {"name":"PiNmap 1.0", "command": self.pinmap_window},
+            {"name":"PhishReel 1.0", "command": self.phish_reel_window},
+            {"name":"API Query 1.0", "command": self.api_query_window},
+            {"name":"IP Dig 2.0", "command": self.ip_dig_window},
+            {"name":"LinkCheck 1.0", "command": self.link_checker_window}, 
+            {"name":"R7 Delete Assets 1.0", "command": self.ivm_delete_assets_window},
+            {"name":"Mass IP Check 1.0", "command": self.mass_ip_window}
             ]
         tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
@@ -157,15 +163,16 @@ class SOCer:
         main_menu.add_cascade(label="Tools", menu=tool_menu, underline=0)
 
         tabs = [
-            {"name":"ClipBoard Combiner 1.0", "command": self.combiner},
-            {"name":"Find&Replace 1.0", "command": self.replacer},
-            {"name":"Comparer 1.0", "command": self.comparer},
-            {"name":"Comparer 2.0", "command": self.comparer2},
-            {"name":"Black Screen 1.0", "command": self.black_screen},
-            {"name":"Hot Keys 1.0", "command": self.hot_keys},
-            {"name":"Paste+ 1.0", "command": self.paste_plus} #,
             # {"name":"", "command": self.},
-            # {"name":"", "command": self.}
+            # {"name":"", "command": self.},
+            {"name":"ClipBoard Combiner 1.0", "command": self.combiner_window},
+            {"name":"Find&Replace 1.0", "command": self.replacer_window},
+            {"name":"Comparer 1.0", "command": self.comparer_window},
+            {"name":"Comparer 2.0", "command": self.comparer2_window},
+            {"name":"Black Screen 1.0", "command": self.black_screen_window},
+            {"name":"Hot Keys 1.0", "command": self.hot_keys_window},
+            {"name":"Paste+ 1.0", "command": self.paste_plus_window}
+            
             ]
         tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
@@ -179,7 +186,7 @@ class SOCer:
             # {"name":"", "command": self.},
             # {"name":"", "command": self.},
             # {"name":"", "command": self.},
-            {"name":"Powershell", "command": self.powershell_tab}
+            {"name":"Powershell", "command": self.powershell_window}
             ]
         tabs.sort(key=lambda x: x["name"])
         for tab in tabs: 
@@ -193,7 +200,7 @@ class SOCer:
         main_menu.add_cascade(label="Ref", menu=reference_menu, underline=0)
 
         for file in reference_files:
-            reference_menu.add_command(label=file, command=lambda file=file: self.standard_window(self.ref_tab, "Reference Files", "reference/" + file), underline=0)
+            reference_menu.add_command(label=file, command=lambda file=file: self.standard_window(self.ref_window, "Reference Files", "reference/" + file), underline=0)
 
         # 7th Menu Item 
         # def new_window():
@@ -214,6 +221,8 @@ class SOCer:
         self.standard_window(self.welcome_window, "Welcome")
 
         self.load_hot_keys()
+        self.scheduler = sched.scheduler(time.time, time.sleep)
+
         
         self.window.mainloop()
         logging.info("SOCer Initiated")
@@ -317,9 +326,9 @@ class SOCer:
         label = tk.Label(frame, text=text, textvariable=textvariable, justify=justify, background=background, width=width, font=("@Yu Gothic UI Semilight",9))
         label.grid(row=row, column=column, padx=padx, pady=pady, columnspan=columnspan)
         
-    def standard_frame(self, frame, bg='white', text=None, font=("@Yu Gothic UI Semibold",9), row=0, column=0):
+    def standard_frame(self, frame, bg='white', text=None, font=("@Yu Gothic UI Semibold",9), row=0, column=0, rowspan=1):
         frame = tk.LabelFrame(frame, text=text, bg=bg, font=font)
-        frame.grid(row=row, column=column)
+        frame.grid(row=row, column=column, rowspan=rowspan)
         return frame
     
     
@@ -331,7 +340,8 @@ class SOCer:
         label_frame_3 = self.standard_frame(self.window, bg='white', row=2)
         label_frame_4 = self.standard_frame(self.window, bg='white', row=3)
         label_frame_5 = self.standard_frame(self.window, bg='white', row=4)
-        self.frames = [label_frame_1, label_frame_2, label_frame_3, label_frame_4, label_frame_5]
+        label_frame_6 = self.standard_frame(self.window, bg='white', row=0, column=2, rowspan=5)
+        self.frames = [label_frame_1, label_frame_2, label_frame_3, label_frame_4, label_frame_5, label_frame_6]
         logging.info(f"Calling {function} with {self.frames, *args}")
         function(self.frames, *args)
 
@@ -353,7 +363,7 @@ class SOCer:
         welcome_text = """ Welcome to SOCer! Look at the above tabs to explore!"""
         self.standard_label(frame[0], text=welcome_text, justify="left", padx=50, pady=50)
         
-    def ref_tab(self, frame, file):
+    def ref_window(self, frame, file):
         file_path = tk.StringVar()
         file_path.set(file)
 
@@ -368,7 +378,347 @@ class SOCer:
 
         self.standard_button(frame[2], text="Save", command=save_file)
 
-    def mass_ip(self, frame):
+    def _alert(self, message, title="Alert", send_email=False):
+        logging.debug(f"Triggering Alert {message}")
+        messagebox.showwarning(title, message)
+        self.window.bell()
+        config = self.get_config_file()
+        to_email = config["ALERTS"]["alert_dest_email"]
+        if send_email:
+             result = send_email(to_email, "SOCer: "+title, message, "DEFAULT", "SOCer")
+             logging.info(result)
+    
+    # def resource_monitor_window(self, frame):
+    #     """ This is in early design. Not sure what to do here as far as alert/notification on ___ condition """
+    #     #scheduler.enter(delay=1, priority=2, print, argument=())
+    #     delay = tk.IntVar()
+    #     delay.set(600)
+    #     resource_type = tk.StringVar()
+    #     resource = tk.StringVar()
+    #     monitor = tk.IntVar()
+    #     alert_when = tk.StringVar()
+    #     verify_ssl = tk.BooleanVar()
+    #     method = tk.StringVar()
+    #     success = tk.StringVar()
+    #     def update_vars(a, b, c):
+    #         try:
+    #             mjson = json.loads(config["MONITORS"][str(monitor.get())])
+    #             resource_type.set(mjson["type"])
+    #             delay.set(mjson["delay"])
+    #         except: pass
+    #     def type_specific_items(a, b, c):
+    #         for fr in frame[1:]:
+    #             fr.grid_forget()
+    #         if resource_type.get() in ["IP/Hostname"]:
+    #             self.standard_input_oneliner(frame[1], text="Resource", textvariable=resource)
+    #             self.standard_options_menu(frame[1], row=1, labeltext="Alert When", options=["Up", "Down"], variable=alert_when)
+    #             frame[1].grid(row=1, column=0)
+    #         elif resource_type.get() in ["RAM", "CPU", "Disk"]:
+    #             pass
+    #         elif resource_type.get() in ["HTTP Request"]:
+    #             self.standard_input_oneliner(frame[2], text="URL:", textvariable=resource)
+    #             self.standard_input_oneliner(frame[2], text="Method:", textvariable=method, row=1)
+    #             default_headers = {'Accept': "application/json", 'User-Agent': "ApiQuery1.0", "Content-Type":"application/json"}
+    #             headers_text = self.standard_textbox(frame[2], label_text="Headers", columnspan=2, row=2)
+    #             headers_text.insert("1.0", str(default_headers))
+    #             data_text = self.standard_textbox(frame[2], label_text="Data", row=4, columnspan=2)
+    #             data_text.insert("1.0", "{}")
+    #             self.standard_checkbuttons(frame[2], text_vars=[["Verify SSL", verify_ssl]], row=6)
+    #             frame[2].grid(row=2, column=0)
+    #             self.standard_label(frame[2], text="Use a status code (200) or regex (/[sS]uccess/) below", row=7, columnspan=2)
+    #             self.standard_input_oneliner(frame[2], text="Alert If Does Not Match", row=8, textvariable=alert_when)
+    #         elif resource_type.get() in ["Baseline Security"]:
+    #             self.standard_options_menu(frame[3], row=1, labeltext="Resource", options=["ports", "services"], variable=resource)
+    #             frame[3].grid(row=3, column=1)
+    #         elif resource_type.get() in ["IP/Hostname"]:
+    #             pass
+    #     def schedule():
+    #         try:
+    #             config["MONITORS"][str(monitor.get())] = {"type": resource_type.get(), "resource": resource.get(), "delay": str(delay.get()), "alert_when": alert_when.get()}
+    #             if resource_type.get() in ["IP/Hostname"]:
+    #                 pass
+    #             elif resource_type.get() in ["HTTP Request"]:
+    #                 config["MONITORS"][str(monitor.get())]["method"] = method.get()
+    #                 config["MONITORS"][str(monitor.get())]["verify"] = verify_ssl.get()
+    #                 config["MONITORS"][str(monitor.get())]["headers"] = headers_text.get()
+    #                 config["MONITORS"][str(monitor.get())]["body"] = data_text.get()
+    #             self.save_config_file(config=config)
+    #             success.set("Success")
+    #         except Exception as e: 
+    #             success.set(f"{e} {e.__traceback__.tb_lineno}")
+       
+    #     resource_type.trace("w", type_specific_items)
+    #     monitor.trace("w", update_vars)
+        
+    #     #Format = {"type": "IP/hostname", "resource": "1.1.1.1", "delay": 6000, "alert_when": "down"}
+    #     # {"type": "API", "resource": {"url": "", "method", "headers", "body"}, "delay": 6000, "alert_when": "200"} # or "/regex/"
+    #     # CPU
+    #     # Storage
+    #     # Baseline Security
+    #     # IPs/hostname pings
+    #     # API Calls for status code/Regex 
+    #     config = self.get_config_file()
+    #     monitors = list(config["MONITORS"].keys())
+    #     monitors.append(str(int(monitors[-1])+1))
+    #     options=["CPU", "RAM", "Disk", "IP/Hostname", "HTTP Request", "Baseline Security"]
+    #     self.standard_options_menu(frame[0], variable=monitor, labeltext="Monitor", options=monitors)
+    #     self.standard_options_menu(frame[0], variable=resource_type, labeltext="Resource Type", options=options, row=1)
+    #     self.standard_input_oneliner(frame[0], text="Delay (Seconds)", textvariable=delay, row=2)
+    #     self.standard_button(frame[0], text="Schedule", command=schedule, row=3)
+    #     self.standard_label(frame[0], textvariable=success, row=4)
+        
+
+    def baseline_security_window(self, frame):
+
+        temp_port_file = "SOCer_Ports.temp"
+        temp_service_file = "SOCer_Services.temp"
+
+        permanent_port_file = "Baseline_ports.json"
+        permanent_service_file = "Baseline_services.json"
+
+        def get_ports():
+            host_ip = socket.gethostbyname(socket.gethostname())
+            pmap = Pinmap(host_ip, delete_database=False)
+            pmap_json = pmap.convert_to_json()
+            pmap.remove_database()
+            pmap_json = json.loads(pmap_json)
+            pmap_json = pmap_json[list(pmap_json.keys())[0]]
+            open_ports = {}
+            for port in pmap_json.keys():
+                if pmap_json[port]["status"] != "closed":
+                    result_box.insert("1.0", f"{port} : {pmap_json[port]}\n")
+                    open_ports[port] = pmap_json[port]
+            with open(temp_port_file, "w") as f:
+                json.dump(open_ports, f)
+            result_box.insert("1.0", "--- Get Ports ---\n")
+        
+        def get_services():
+            services = {}
+            for service in psutil.win_service_iter():
+                services[service.name()] = f"{service.display_name()} ({service.status()})"
+                result_box.insert("1.0", f"{service.display_name()} ({service.status()})\n")
+            with open(temp_service_file, "w") as f:
+                json.dump(services, f)
+            result_box.insert("1.0", "--- Get Services ---\n")
+
+
+        def store_ports():
+            if not os.path.exists(temp_port_file):
+                get_ports()
+            with open(temp_port_file, "r") as f:
+                contents = f.read()
+            with open(permanent_port_file, "w") as f:
+                f.write(contents)
+
+        def store_services():
+            if not os.path.exists(temp_service_file):
+                get_services()
+            with open(temp_service_file, "r") as f:
+                contents = f.read()
+            with open(permanent_service_file, "w") as f:
+                f.write(contents)
+
+        def append_ports():
+            if not os.path.exists(temp_port_file):
+                get_ports()
+            with open(temp_port_file, "r") as f:
+                new_ports = json.load(f)
+            with open(permanent_port_file, "r") as f:
+                old_ports = json.load(f)
+            combo = new_ports | old_ports
+            with open(permanent_port_file, "w") as f:
+                json.dump(combo, f)
+        
+        def append_services():
+            if not os.path.exists(temp_service_file):
+                get_services()
+            with open(temp_service_file, "r") as f:
+                new_services = json.load(f)
+            with open(permanent_service_file, "r") as f:
+                old_services = json.load(f)
+            combo = new_services | old_services
+            with open(permanent_service_file, "w") as f:
+                json.dump(combo, f)
+
+        def compare_ports():
+            if not os.path.exists(temp_port_file):
+                get_ports()
+            with open(temp_port_file, "r") as f:
+                new_ports = json.load(f)
+            with open(permanent_port_file, "r") as f:
+                old_ports = json.load(f)
+            same = 1
+            for key in list(new_ports.keys()) + list(old_ports.keys()):
+                if key in new_ports.keys() and key not in old_ports.keys():
+                    result_box.insert("1.0", f"NEWLY OPENED - {key} : {new_ports[key]}\n")
+                    same = 0
+                if key in old_ports.keys() and key not in new_ports.keys():
+                    result_box.insert("1.0", f"Newly closed - {key} : {old_ports[key]}\n")
+                    same = 0
+            if same == 1: result_box.insert("1.0", "No difference\n")
+            result_box.insert("1.0", "--- Compare Ports ---\n")
+            
+
+        def compare_services():
+            if not os.path.exists(temp_service_file):
+                get_services()
+            with open(temp_service_file, "r") as f:
+                new_services = json.load(f)
+            with open(permanent_service_file, "r") as f:
+                old_services = json.load(f)
+            same = 1
+            for key in list(new_services.keys()) + list(old_services.keys()):
+                if key in new_services.keys() and key not in old_services.keys():
+                    result_box.insert("1.0", f"NEW - {new_services[key]}\n")
+                    same = 0
+                if key in old_services.keys() and key not in new_services.keys():
+                    result_box.insert("1.0", f"Removed - {old_services[key]}\n")
+                    same = 0
+            if same == 1: result_box.insert("1.0", "No difference\n")
+            result_box.insert("1.0", "--- Compare Services ---\n")
+
+
+        result_box = self.standard_textbox(frame[0], height=20)
+
+        self.standard_button(frame[1], text="Get Ports", command=get_ports, row=0, column=0, width=35)
+        self.standard_button(frame[1], text="Get Services", command=get_services, row=0, column=1, width=35)
+        self.standard_button(frame[1], text="Store Port Baseline (overwrite)", command=store_ports, row=1, column=0, width=35)
+        self.standard_button(frame[1], text="Store Service Baseline (overwrite)", command=store_services, row=1, column=1, width=35)
+        self.standard_button(frame[1], text="Store Port Baseline (append)", command=append_ports, row=2, column=0, width=35)
+        self.standard_button(frame[1], text="Store Service Baseline (append)", command=append_services, row=2, column=1, width=35)
+        self.standard_button(frame[1], text="Compare Ports", command=compare_ports, row=3, column=0, width=35)
+        self.standard_button(frame[1], text="Compare Services", command=compare_services, row=3, column=1, width=35)
+
+    def asset_op_window(self, frame):
+        
+        
+        def find_in_grid(frame, row, column):
+            for child in frame.children.values():
+                info = child.grid_info()
+                if info['row'] == row and info['column'] == column:
+                    return child
+                
+        def make_cells(height, width, frame, values=None):
+            spreadsheet = []
+            if values is None: values = ["" for x in range(height*width)]
+            for i in range(height): #Rows
+                spreadsheet.append([])
+                for j in range(width): #Columns
+                    temp_var = tk.StringVar()
+                    self.vars.append(temp_var)
+                    spreadsheet[i].append(temp_var)
+                    temp_var.set(values[0])
+                    tk.Entry(frame, textvariable=temp_var).grid(row=i, column=j)
+                    values.pop(0)
+            return spreadsheet
+        
+        column_names = ["hostname", "IP", "org", "country", "site", "S1", "R7"]
+        make_cells(1, 7, frame[0], values=column_names.copy())
+        spreadsheet = make_cells(25, 7, frame[1])
+                    
+        def set_cell(row=0, column=0, value = "", spreadsheet=spreadsheet):
+            spreadsheet[row][column].set(value)
+
+        def run_nslookup():
+            for row_index in range(len(spreadsheet)):
+                ip = spreadsheet[row_index][column_names.index("IP")].get()
+                host = spreadsheet[row_index][column_names.index("hostname")].get()
+                if spreadsheet[row_index][column_names.index("R7")].get().strip() != "" or (len(ip) < 7 and len(host) < 5): 
+                    continue
+                if len(ip) < 4 and len(host) > 4:
+                    try: 
+                        ip = socket.gethostbyname(host)
+                        spreadsheet[row_index][column_names.index("IP")].set(ip)
+                    except Exception as e: logging.debug(str(e))
+                elif len(host) < 4 and len(ip) > 4:
+                    try:
+                        host = socket.gethostbyaddr(ip)[0]
+                        spreadsheet[row_index][column_names.index("hostname")].set(host)
+                    except Exception as e: logging.debug(str(e))
+        def r7():
+            for row_index in range(len(spreadsheet)):
+                ip = spreadsheet[row_index][column_names.index("IP")].get()
+                hostname = spreadsheet[row_index][column_names.index("hostname")].get()
+                if spreadsheet[row_index][column_names.index("R7")].get().strip() != "" or (len(ip) < 7 and len(hostname) < 5): 
+                    continue
+                if len(ip) > 6:
+                    ip = ip
+                else: ip = None
+                if len(hostname) > 6:
+                    host = hostname
+                else: host = None
+                result = InsightVM.get_asset_info(ip=ip, hostname=host)
+                spreadsheet[row_index][column_names.index("R7")].set(str(result))
+
+        def s1():
+            for row_index in range(len(spreadsheet)):
+                ip = spreadsheet[row_index][column_names.index("IP")].get()
+                hostname = spreadsheet[row_index][column_names.index("hostname")].get()
+                if spreadsheet[row_index][column_names.index("S1")].get().strip() != "" or (len(ip) < 7 and len(hostname) < 5): 
+                    continue
+                if len(ip) > 6:
+                    ip = ip
+                else: ip = None
+                if len(hostname) > 6:
+                    host = hostname
+                else: host = None
+                result = SentinelOne.search_asset(device=host, ip=ip)
+                spreadsheet[row_index][column_names.index("S1")].set(str(result))
+
+        def delete_assets():
+            for row_index in range(len(spreadsheet)):
+                hostname = spreadsheet[row_index][column_names.index("hostname")].get()
+                if len(hostname.strip()) > 5:
+                    ids = InsightVM.remove_asset(hostname.strip())
+                    spreadsheet[row_index][column_names.index("R7")].set(str(list(ids)))
+
+        def paste_in(item="IP", column_names=column_names):
+            ips = self.window.clipboard_get()
+            ips = re.split(r"[\s;:,]", ips)
+            for ip_ind in range(len(ips)):
+                print(column_names)
+                set_cell(ip_ind, column_names.index(item), ips[ip_ind])
+
+        def run_ip_info():
+            for row_index in range(len(spreadsheet)):
+                 if spreadsheet[row_index][column_names.index("org")].get().strip() != "" or len(spreadsheet[row_index][column_names.index("IP")].get()) < 7: 
+                    continue
+                 ret_text, ret_dict = self.run_ipinfo(spreadsheet[row_index][column_names.index("IP")].get())
+                 if ret_dict is None:
+                     pass
+                 else:
+                    for columns in ["org", "country", "hostname", "site"]:
+                        try:
+                            spreadsheet[row_index][column_names.index(columns)].set(ret_dict[columns])
+                        except Exception as e:
+                            logging.error(e)
+                            logging.error(ret_text)
+
+        def copy_all():
+            ret_string = ""
+            for row_index in range(len(spreadsheet)):
+                for column_index in range(len(spreadsheet[row_index])):
+                    ret_string += spreadsheet[row_index][column_index].get() + "\t"
+                ret_string += "\n"
+            #self.window.clipboard_append(ret_string)
+            self.copy(ret_string)
+
+          
+        self.standard_button(frame[-1], text="Clear", command=lambda: self.standard_window(self.asset_op_window, "Asset Ops 1.0"), row=6)
+        self.standard_button(frame[-1], text="Paste IPs", command=lambda item="IP":paste_in(item), row=7)
+        self.standard_button(frame[-1], text="Paste Hostnames", command=lambda item="hostname":paste_in(item), row=8)
+        self.standard_button(frame[-1], text="Copy All", command=copy_all, row=9)
+
+        self.standard_label(frame[-1], text="", row=5)
+
+        self.standard_button(frame[-1], text="ipinfo.io", command=run_ip_info, row=4)
+        self.standard_button(frame[-1], text="NSLookup", command=run_nslookup, row=3)
+        self.standard_button(frame[-1], text="R7 Query", command=r7, row=2)
+        self.standard_button(frame[-1], text="S1 Query", command=s1, row=1)
+        self.standard_button(frame[-1], text="DELETE in R7", command=delete_assets, row=0)
+
+    
+    def mass_ip_window(self, frame):
         def find_in_grid(frame, row, column):
             for child in frame.children.values():
                 info = child.grid_info()
@@ -436,7 +786,7 @@ class SOCer:
         completed = subprocess.run(["powershell", "-Command", cmd], capture_output=True)
         return completed
     
-    def powershell_tab(self, frame):
+    def powershell_window(self, frame):
         cmd = """function dotask {
             param (
                 $keylist, # A list of keys to type
@@ -472,7 +822,7 @@ class SOCer:
         output_text = self.standard_textbox(frame[1], label_text="output", row=2)
         self.standard_button(frame[2], text="run", command=run_script)
     
-    def paste_plus(self, frame):
+    def paste_plus_window(self, frame):
         seconds = tk.StringVar()
         seconds.set(5)
         value = tk.StringVar()
@@ -531,7 +881,7 @@ class SOCer:
 
         self.standard_button(frame[1], text="Save", command=save_all)
         
-    def ivm_delete_assets(self, frame):
+    def ivm_delete_assets_window(self, frame):
         def delete_assets():
             output_txbox.delete("1.0", tk.END)
             assets = re.split("[\s;:,]", asset_txbox.get("1.0", tk.END))
@@ -568,7 +918,7 @@ class SOCer:
                     return_dict[key] = jsponse[key]
             return return_text, return_dict
     
-    def ip_dig(self, frame):
+    def ip_dig_window(self, frame):
         ip_addr = tk.StringVar()
         hostname = tk.StringVar()
         def run_nslookup():
@@ -629,7 +979,7 @@ class SOCer:
         results_text = self.standard_textbox(frame[2], label_text="Results:", height=15)
         #headers_text.insert("1.0", str(default_headers))
 
-    def hot_keys(self, frame):
+    def hot_keys_window(self, frame):
         hot_key = tk.StringVar()
         hot_key.set("<F1>")
         value = tk.StringVar()
@@ -646,7 +996,7 @@ class SOCer:
         self.standard_button(frame[0], text="Save for Session", row=2, command=save_hot_key)
         self.standard_button(frame[0], text="Save Permantly (Plain Text)", row=2, column=1, command=permanently_save_hot_key)
 
-    def black_screen(self, frame):
+    def black_screen_window(self, frame):
         self.t = ''
         def activate_black_screen():
             self.t = tk.Toplevel(self.window, background="black")
@@ -662,7 +1012,7 @@ class SOCer:
         self.standard_button(frame[0], text="Activate Black Screen", row=1, command=activate_black_screen)
         self.standard_button(frame[0], text="Quit Black Screen", row=2, command=exit_black_screen)
         
-    def api_query(self, frame):
+    def api_query_window(self, frame):
         url = tk.StringVar()
         url.set("https://catfact.ninja/fact") # Free test api
         method = tk.StringVar()
@@ -701,7 +1051,7 @@ class SOCer:
     
         response_text = self.standard_textbox(frame[3], label_text="Response")
    
-    def phish_reel(self, frame):
+    def phish_reel_window(self, frame):
         to_email = tk.StringVar()
         subject = tk.StringVar()
         content = tk.StringVar()
@@ -747,7 +1097,7 @@ class SOCer:
  
         self.standard_button(frame[2], "Send", send_phish, column=2)
 
-    def pinmap(self, frame):
+    def pinmap_window(self, frame):
         query = tk.StringVar()
         self.vars.append(query)
 
@@ -769,7 +1119,7 @@ class SOCer:
 -p = Port numbers\n-pn = Scan ports even if fail ping\n-sS, -sA, -sX = SYN Scan, ACK Scan, XMAS scan\n-sV = Get Version Info (Banner scan)\n-v = Verbose\n-d/-dd = Increase debug level\n-sn = Ping scan only\n-PR, -PA, -PS = ARP Ping, ACK ping, SYN ping"""
         help_text.insert(tk.END, help + "\n")
 
-    def comparer2(self, frame):
+    def comparer2_window(self, frame):
         split_by = tk.StringVar()
         split_by.set("\t")
         self.vars.append(split_by)
@@ -857,7 +1207,7 @@ class SOCer:
 
         self.standard_button(subframe_2, text="Compare", command=compare, row=1, columnspan=3)
 
-    def comparer(self, frame):
+    def comparer_window(self, frame):
         split_by = tk.StringVar()
         split_by.set("\t")
         self.vars.append(split_by)
@@ -922,7 +1272,7 @@ class SOCer:
 
         dupe_entry = self.standard_textbox(frame[3], label_text="Duplicates", t_background="lightgrey", height=5, width=160, row=2, columnspan=2)
 
-    def replacer(self, frame): 
+    def replacer_window(self, frame): 
         in_this_text = tk.StringVar()
         find_this = tk.StringVar()
         replace_w_this = tk.StringVar()
@@ -967,7 +1317,7 @@ class SOCer:
         #subprocess.Popen(["echo", sep.join(clipboard), "|", "clip.exe"])
 
     
-    def combiner(self, frame):
+    def combiner_window(self, frame):
         seperator = tk.StringVar()
         seperator.set(", ")
         result = tk.StringVar()
@@ -1008,7 +1358,7 @@ class SOCer:
             result.set("")
             self.destroy_frames()
             logging.info(f"Reset")
-            self.standard_window(self.combiner, "ClipBoard Combiner 1.0")
+            self.standard_window(self.combiner_window, "ClipBoard Combiner 1.0")
 
         def show_value():
             sep = str(seperator.get())
@@ -1030,7 +1380,7 @@ class SOCer:
         self.standard_label(frame[1], row=2, text="Press 'Play', copy each item you need, wait until we say 'Done'\n Press 'Show' to check progress. Do not press 'Copy' until done.")
         
 
-    def link_checker(self, frame): 
+    def link_checker_window(self, frame): 
         link_unwrapped = tk.StringVar()
         link_unwrapped.set("")
         scan_results = tk.StringVar()

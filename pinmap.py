@@ -570,7 +570,7 @@ class Pinmap:
 ## Example 3: Scans two ips, 4 ports, in verbose mode, gets json in variable
 # pmap = Pinmap("nmap 192.168.1.1-192.168.1.2 -v -p 21-22,80,443", delete_database=False)
 # pmap_json = pmap.convert_to_json()
-# pmap.delete_database()
+# pmap.remove_database()
 # print(pmap_json)
 
 ## Example 4: Ping scan
