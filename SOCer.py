@@ -612,9 +612,9 @@ class SOCer:
                     values.pop(0)
             return spreadsheet
         
-        column_names = ["hostname", "IP", "org", "country", "site", "S1", "R7"]
-        make_cells(1, 7, frame[0], values=column_names.copy())
-        spreadsheet = make_cells(25, 7, frame[1])
+        column_names = ["hostname", "IP", "ping", "org", "country", "site", "S1", "R7"]
+        make_cells(1, len(column_names), frame[0], values=column_names.copy())
+        spreadsheet = make_cells(25, len(column_names), frame[1])
                     
         def set_cell(row=0, column=0, value = "", spreadsheet=spreadsheet):
             spreadsheet[row][column].set(value)
@@ -679,6 +679,16 @@ class SOCer:
                 print(column_names)
                 set_cell(ip_ind, column_names.index(item), ips[ip_ind])
 
+        def ping():
+            for row_index in range(len(spreadsheet)):
+                 ip = spreadsheet[row_index][column_names.index("IP")].get()
+                 if len(ip) < 7: 
+                    continue
+                 command = ["ping", "-w", "10", "-n", "1", ip] 
+                 pingable = subprocess.run(args=command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
+                 spreadsheet[row_index][column_names.index("ping")].set(pingable)
+                 
+
         def run_ip_info():
             for row_index in range(len(spreadsheet)):
                  if spreadsheet[row_index][column_names.index("org")].get().strip() != "" or len(spreadsheet[row_index][column_names.index("IP")].get()) < 7: 
@@ -704,13 +714,16 @@ class SOCer:
             self.copy(ret_string)
 
           
-        self.standard_button(frame[-1], text="Clear", command=lambda: self.standard_window(self.asset_op_window, "Asset Ops 1.0"), row=6)
-        self.standard_button(frame[-1], text="Paste IPs", command=lambda item="IP":paste_in(item), row=7)
-        self.standard_button(frame[-1], text="Paste Hostnames", command=lambda item="hostname":paste_in(item), row=8)
-        self.standard_button(frame[-1], text="Copy All", command=copy_all, row=9)
+        self.standard_button(frame[-1], text="Clear", command=lambda: self.standard_window(self.asset_op_window, "Asset Ops 1.0"), row=17)
+        self.standard_button(frame[-1], text="Paste IPs", command=lambda item="IP":paste_in(item), row=18)
+        self.standard_button(frame[-1], text="Paste Hostnames", command=lambda item="hostname":paste_in(item), row=19)
+        self.standard_button(frame[-1], text="Copy All", command=copy_all, row=20)
 
-        self.standard_label(frame[-1], text="", row=5)
+        self.standard_label(frame[-1], text="", row=11)
+        self.standard_label(frame[-1], text="", row=12)
+        self.standard_label(frame[-1], text="", row=10)
 
+        self.standard_button(frame[-1], text="ping", command=ping, row=5)
         self.standard_button(frame[-1], text="ipinfo.io", command=run_ip_info, row=4)
         self.standard_button(frame[-1], text="NSLookup", command=run_nslookup, row=3)
         self.standard_button(frame[-1], text="R7 Query", command=r7, row=2)
